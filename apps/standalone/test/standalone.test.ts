@@ -158,6 +158,7 @@ describe('Standalone Embedder API', () => {
     const input = {
       sessionId: 'all-capabilities',
       tab: { mode: 'create' },
+      childTargetPolicy: 'retain',
       capabilities: [...CAPABILITIES],
       signaling: {
         gatewayId: 'gateway-1',
