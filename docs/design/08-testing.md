@@ -465,7 +465,7 @@ redacted `page-script.error` diagnostics and never converted either failure into
 Final cleanup left zero Standalone Sessions and zero matching page targets. Reproduction evidence
 lives in the ignored `tmp/gate0/phase4-page-script/` directory and is not a release artifact.
 
-### Current compatibility Gate 0 result
+### Initial compatibility Gate 0 result
 
 The 2026-09-04 consolidated Gate used Google Chrome Stable `152.0.7977.75`, signed managed
 Extension `0.1.14`, the current workspace Core/Standalone/Protocol/Headless Client builds and a
@@ -642,8 +642,8 @@ aggregate gate. The received candidate's 19 checksums and provenance subjects pa
 Each of the six npm tarballs passed GitHub attestation verification bound to this repository,
 `.github/workflows/ci.yml`, the full source commit and `refs/heads/main`, rejecting self-hosted
 signing runners. Downloaded chrome-node, signaling and standalone SBOM checksums also passed,
-with 226, 96 and 97 packages respectively. This verifies received CI artifacts; the full current
-Chrome/Extension/Direct/TURN/browser release matrix remains a separate pending acceptance item.
+with 226, 96 and 97 packages respectively. This verifies received CI artifacts; the final current-candidate transport and desktop
+results are recorded below, separately from these initial hosted artifact checks.
 
 Credential-free results are retained under the ignored `tmp/hosted-ci-qa/`, including
 `source-publication/result.json`, `npm-attestation-result.json` and `container-sbom-result.json`.
@@ -952,3 +952,114 @@ included them, the new formatter omitted them, and the original event and unrela
 were preserved. This is log-sink evidence, not a new Chrome/CDP/WebRTC run. Local paired-workspace
 proof is in ignored `browshare/tmp/observability-qa/standalone-log-result.json`; no external artifact
 was published.
+
+### Current candidate transport Gate (2026-09-08, 0.1.23 / protocol 1.4)
+
+The runtime was rebuilt from the anonymous public source commit
+`8fb6909954be2fe5590ba6a5241684e9378827cb`, using the formal Dockerfile targets. It ran
+Google Chrome Stable `152.0.7977.75`, managed signed Extension `0.1.23` and protocol `1.4`
+on Ubuntu 24.04 amd64. The independent QA Extension signing identity is not an official
+publisher identity. Client, Protocol and Viewer browser inputs were the received, attested
+0.1.23 candidate tarballs from public commit `c4457f08580812349e68c31c741d010fdd5f0c82`;
+those components and Core/Extension did not change between these two commits.
+
+The real first request with thirteen known capabilities exposed a Standalone REST schema
+limit of twelve despite the protocol registry containing seventeen. Session creation, Ticket
+issuance and capability updates now derive their shared limit from `CAPABILITIES.length`.
+The actual Chrome runtime accepted all seventeen with the required `childTargetPolicy: retain`,
+while six unknown/duplicate-list requests returned 400 without leaving a Session. The nine
+Standalone HTTP tests passed, and [CI for the runtime fix](https://github.com/x3zvawq/browshare-remote-tab/actions/runs/34219026564)
+completed successfully. Window selection without retained child targets remains correctly rejected.
+
+Each of the following routes passed the same four-concurrent-Session flow in local branded
+Google Chrome Stable `152.0.7977.76`:
+
+| Route | Actual selected candidate evidence | Result |
+| --- | --- | --- |
+| Direct | local prflx, remote host, UDP; no relay | Passed |
+| Forced TURN/UDP | both relay, `relayProtocol: udp` | Passed |
+| Forced TURN/TCP | both relay, `relayProtocol: tcp` | Passed |
+| Forced TURN/TLS | both relay, `relayProtocol: tls` | Passed |
+
+Every run verified unique Session/tabId/targetId mappings, decoded video and all three
+DataChannels, pointer/drag/wheel/key/Ctrl+A and Chinese/Emoji input, custom and automatic
+quality acknowledgements, Page Script context, clipboard round-trip, actual uploaded bytes,
+two concurrent downloads with distinct ownership and exact bytes, local-open rejection, Notice,
+reload and per-Session navigation/back/forward/suspend/resume. Generation-two Viewer takeover
+rejected the retired peer's input; destroying one suspended target left the other three connected.
+Final authenticated inventory and CDP inspection showed zero Sessions and owned targets.
+All four container memory-event counters showed no OOM, and each owned local browser closed.
+Configured frame-rate limits and collected media metrics are not a sustained 60 FPS capacity claim.
+
+TURN/TLS used only a `turns:` endpoint with the publicly trusted Let's Encrypt YE2 certificate
+for `149-88-75-53.sslip.io`, valid from 2026-09-08 through 2026-12-07. Browser certificate-error
+bypasses were not used. The temporary Chrome profile mapped only this hostname to the server IP.
+The one-shot certificate tool exited without a renewal service.
+
+Original failed attempts remain under ignored `tmp/release-gate-0123/`. The temporary harness's
+script-only file click was replaced by real public pointer events; unchanged upload/download
+runtime code then passed all four routes. Accepted run directories are
+`direct-1788866627009`, `udp-1788866729119`, `tcp-1788866837280` and `tls-1788866931964`.
+This transport result is one part of the current-candidate Gate; the final corrected-client
+desktop matrix below completes its browser coverage. It does not publish npm packages, GHCR
+images or an official signed Extension.
+
+### Shared-stream playback correction (2026-09-08, unpublished 0.1.23)
+
+Native Safari playback instrumentation found that the audio and video `track` callbacks supplied
+the same MediaStream object, but Headless Client assigned it twice to `video.srcObject`. The
+second assignment reset the actual media element and rejected the first pending `play()` with
+`AbortError`. A subsequent play could succeed, so this observed reset is not proof that every
+black frame has the same cause. The client now binds and starts playback only when the stream
+object changes; explicit attach/detach and genuinely new stream replacement retain their semantics.
+
+The added client tests failed against the original implementation and passed after correction
+(10 scoped tests total), including pending playback, shared audio/video tracks, distinct stream
+objects with the same ID, detach/reattach and unchanged `NotAllowedError` feedback. Client
+typecheck and package build passed. The packed corrected client was used by the same Viewer
+package in actual Safari: one stream binding and one resolved play request, no duplicate-binding
+AbortError, advancing video time before and after suspend/resume, complete functional flow, and
+zero final Sessions. Detailed evidence is under `tmp/release-gate-0123/client-media-fix/`.
+
+The original Safari supplementary playback timeout remains recorded, rather than overwritten
+by later success. A separate background-connect/foreground-return diagnostic run completed:
+play waited while the document was hidden and resolved on returning to the visible foreground.
+No new retry loop, autoplay bypass or speculative native-pause policy was introduced.
+
+### Final corrected-client compatibility result (2026-09-08)
+
+Client fix `97f3bd2e60e90064ff5fcd0d3ca5e9a79d32e75b` completed the same four-Session
+Direct, forced TURN/UDP, TURN/TCP and TURN/TLS flow using the packed corrected client.
+Each route retained decoded video, all three channels, isolated functional and lifecycle checks,
+actual selected-pair/media metrics, zero final Sessions/targets and owned browser cleanup.
+The runtime remained the separately identified 8fb6909 build because this change affects the
+browser client only. Accepted reruns are `direct-1788869155425`, `udp-1788869012236`,
+`tcp-1788868905699` and `tls-1788868776475` under the ignored Gate evidence directory.
+
+The same corrected Client with the unchanged Viewer/Protocol packages also passed the real
+desktop Viewer matrix, including layout, advancing video time, three channels, Chinese/Emoji
+input, clipboard round-trip, applied custom/auto quality, suspend/resume, usable controls and
+zero final Sessions:
+
+| Actual desktop browser | Version | Transport evidence | Result |
+| --- | --- | --- | --- |
+| Google Chrome Stable | 152.0.7977.76 | both relay, `relayProtocol: tls` | Passed |
+| Microsoft Edge | 152.0.4191.66 | both relay, `relayProtocol: tls` | Passed |
+| Safari | 26.5 (21624.2.5.11.4) | both relay; only `turns:` offered | Passed |
+| Firefox | 155.0.1 | both relay, `relayProtocol: tls` | Passed |
+
+Safari was operated through native desktop UI because WebDriver remote automation was disabled;
+that setting was not changed. Safari does not expose `relayProtocol` in these candidate statistics.
+Its TLS route is inferred from the sole `turns:` configuration, actual relay pair and independently
+observed established TCP connections to the TLS-only TURN listener during an isolated Safari run,
+not from a fabricated browser field. System DNS and certificate validation were retained.
+
+Chrome/Edge and Firefox used real user clicks when playback needed activation. Firefox's temporary
+Profile first-use terms were accepted only after explicit user confirmation. Its repeated-profile
+startup initially restored a previous QA page and violated the zero-Session baseline; the temporary
+Firefox harness now starts only after clicking its verification button, so inactive restored QA
+pages cannot create competing Sessions. These driver failures and the Safari diagnostic timeout
+remain in evidence. All owned local browser processes and test tabs were closed after acceptance.
+
+This completes the current 0.1.23 candidate Direct/TURN and four-desktop matrix. Official npm,
+GHCR and signed Extension distribution remain separate unchecked external-publication items.
