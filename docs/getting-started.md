@@ -61,6 +61,9 @@ defaults on their next start; running Chrome preferences are not edited. Explici
 and `@font-face` still take precedence. See [third-party notices](../THIRD_PARTY_NOTICES.md#maple-mono-cn)
 for the pinned asset, license and glyph coverage boundary.
 
+Application files in the runtime images belong to the non-root `node` user. The Dockerfile
+preserves that ownership even when a restrictive source checkout gives package metadata mode `0600`.
+
 Choose the browser-reachable host or DNS name and keep the default ports unless they are already in
 use. The project name keeps this deployment's containers and volumes separate from other Compose
 projects.

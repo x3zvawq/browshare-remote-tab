@@ -27,14 +27,15 @@ RUN apt-get update \
 
 FROM runtime-base AS signaling
 
-COPY --from=build /out/signaling/ /app/
+# pnpm deploy preserves source modes, including package.json from a restrictive checkout.
+COPY --from=build --chown=node:node /out/signaling/ /app/
 USER node
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "dist/cli.mjs"]
 
 FROM runtime-base AS standalone
 
-COPY --from=build /out/standalone/ /app/
+COPY --from=build --chown=node:node /out/standalone/ /app/
 USER node
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "dist/cli.mjs"]
