@@ -1146,3 +1146,60 @@ owned maintenance Sessions/Profiles, local Chrome, isolated proxies and builders
 the six business services and original user Profile remain available. Existing Viewer tests,
 typechecks/builds and scoped UI accessibility checks passed within the limits documented by the
 paired acceptance report. External npm, GHCR and signed Extension publications remain separate.
+
+## Cursor feedback and passive input scheduling (2026-09-09)
+
+Source `f7d897e` coordinates package/Extension version 0.1.24 and wire 1.5. The optional
+`cursorFeedback` capability sends an enum-only cursor event scoped to the Session, generation,
+window and viewport revision. It does not transfer custom cursor assets or page text. The isolated
+document observer and CDP hit test preserve the parent page's cursor when it covers a child frame.
+
+Actual local Chrome verified sixteen cases covering inputs, links, editable content, open shadow
+roots, cross-origin and nested frames, overlays, custom cursor keyword fallback and navigation
+cleanup. The first fractional-coordinate run exposed three failures because CDP's hit-test method
+requires integer coordinates. Flooring only that hit-test argument corrected all sixteen cases;
+actual dispatched input coordinates remain fractional. Scoped typechecks/builds, public exports,
+compatibility and release checks passed, alongside 90 existing tests in 19 files and
+[hosted CI](https://github.com/x3zvawq/browshare-remote-tab/actions/runs/34261873036).
+
+Only queued passive `mouseMoved` commands with zero pressed buttons and the same control context
+can replace an older pending hover. A controlled Core/CDP queue fixture verified a burst of 100
+hover inputs with a key-command ordering barrier. Drag, click, key and wheel commands retain their
+ordering and are not dropped. This establishes queue behavior, not physical input-to-display latency.
+
+The paired BrowShare deployment built clean public source into verified OCI candidates and used its
+existing private QA Extension signing key. Actual Linux Chrome 152.0.7977.75, active Extension/Core
+0.1.24 and the deployed Viewer passed ten cursor cases: input, link, editable, open shadow input,
+cross-origin frame input/link, return to the parent, parent overlay covering two frame targets and
+removing that overlay. Trusted local Chrome input used fractional coordinates; the actual rendered
+Viewer surface showed the expected text, pointer, wait or default cursor. Chinese text reached the
+target page's real input handler. No synthetic cursor messages were used. The embedder advertises
+the capability only when its Worker supports it.
+
+The same deployment compared old 0.1.23 and new 0.1.24 media in three 30-second phases after a
+5-second settling period each. Both used a 1280×713 viewport, 1280×720/30fps/3000kbps policy ceiling,
+VP8, no audio and the same UDP relay candidate types. These are actual receiver video RTP byte and
+decoded-frame deltas; signaling, TURN/IP overhead and fixture HTTP requests are excluded.
+
+| Scenario | 0.1.23 video kbps / decoded fps | 0.1.24 video kbps / decoded fps |
+| --- | --- | --- |
+| Static | 25.5 / 6.2 | 22.4 / 5.8 |
+| Typing | 47.9 / 10.0 | 50.4 / 10.6 |
+| Scrolling | 673.1 / 14.4 | 806.2 / 16.1 |
+
+Each run delivered all 150 input commits, returned to the starting scroll position after 60 wheel
+actions, retained its media track and advanced decoded frames. Video packet-loss deltas were zero
+in these intervals. Scrolling used both more bitrate and more frames in the candidate; this is not
+evidence of universal bandwidth savings. Encoding/quality policy was unchanged. Publisher encode
+time and physical input-to-display latency were not measured, and this scoped acceptance does not
+replace the full browser/TURN matrix required before external release.
+
+Evidence is retained in ignored `tmp/cursor-feedback-qa/` and the paired workspace's
+`tmp/workspace-experience-qa/`. An initial integration attempt exposed a separate Worker offer-wait
+ownership bug; BrowShare `497445f` fixes that lifecycle, with original failure and independent Node
+proof retained in its acceptance report. A stale native Chrome lock was manually removed only from
+the owned QA Profile after exclusive-lock and process checks. The successful real media/cursor run
+followed that repair and the Worker fix deployment. All owned Sessions became terminal, the QA
+Profile/Proxy and Profile storage were removed through business cleanup, and local browsers,
+targets and builders stopped. The public test deployment and original user Profile remain running;
+npm, GHCR and public signed artifacts were not published.

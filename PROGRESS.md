@@ -165,3 +165,5 @@
 
 - [x] Viewer SVG 工具栏、沉浸退出与媒体输入真实验证
 - [x] Chrome Node Maple Mono CN 默认字体与中文渲染镜像验证
+- [x] 可协商的指针反馈、跨域 iframe/遮罩命中及真实 BrowShare Viewer 链路验证
+- [x] 无按键 hover 合并、可靠输入顺序与静止/输入/滚动媒体对比验证
