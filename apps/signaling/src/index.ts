@@ -155,6 +155,7 @@ interface ConnectionRecord {
   windowStartedAt: number
   messagesInWindow: number
   bindInProgress: boolean
+  awaitingPong: boolean
 }
 
 const configurationValidator = Schema.Compile(SignalingGatewayConfigurationSchema)
@@ -181,6 +182,7 @@ export class SignalingGateway {
   #pairsCompletedTotal = 0
   #pairsExpiredTotal = 0
   #server: WebSocketServer | undefined
+  #heartbeatTimer: ReturnType<typeof setInterval> | undefined
 
   public constructor(options: SignalingGatewayOptions) {
     if (!configurationValidator.Check(options.configuration)) {
@@ -223,6 +225,23 @@ export class SignalingGateway {
       server.once('error', handleError)
     })
 
+    // Media bypasses signaling, so healthy sessions otherwise remain silent long enough for
+    // reverse proxies to expire their sockets. Native ping/pong also detects dead peers.
+    this.#heartbeatTimer = setInterval(() => {
+      for (const [socket, record] of this.#connections) {
+        if (socket.readyState !== WebSocket.OPEN) continue
+        if (record.awaitingPong) {
+          socket.terminate()
+          continue
+        }
+        record.awaitingPong = true
+        socket.ping(undefined, undefined, (error) => {
+          if (error != null) socket.terminate()
+        })
+      }
+    }, 25_000)
+    this.#heartbeatTimer.unref()
+
     const address = server.address() as AddressInfo
     return { host: address.address, port: address.port }
   }
@@ -233,6 +252,8 @@ export class SignalingGateway {
       return
     }
     this.#server = undefined
+    clearInterval(this.#heartbeatTimer)
+    this.#heartbeatTimer = undefined
 
     for (const pairing of this.#pairs.values()) {
       clearTimeout(pairing.timer)
@@ -291,6 +312,7 @@ export class SignalingGateway {
       windowStartedAt: Date.now(),
       messagesInWindow: 0,
       bindInProgress: false,
+      awaitingPong: false,
     })
     this.#connectionsByAddress.set(address, addressConnections + 1)
     this.#connectionsAcceptedTotal += 1
@@ -302,6 +324,10 @@ export class SignalingGateway {
       )
     }, this.#configuration.pairingTimeoutMs)
 
+    socket.on('pong', () => {
+      const record = this.#connections.get(socket)
+      if (record !== undefined) record.awaitingPong = false
+    })
     socket.on('message', (data, isBinary) => {
       if (!this.#consumeMessage(socket, data)) return
       try {

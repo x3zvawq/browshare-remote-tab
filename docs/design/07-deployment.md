@@ -149,6 +149,16 @@ outbound RTCStats flow through the loopback and Core hook into that stream; View
 are exposed to the embedding page as `diagnostic` events. These are event streams for logs or an
 Embedder-owned collector, not an implicit high-cardinality metrics backend.
 
+## Signaling keepalive
+
+The signaling Gateway sends a native WebSocket ping every 25 seconds to both Core and Viewer
+connections. A peer that has not answered with a pong by the next interval is terminated, using the
+existing peer-departure lifecycle. Browsers and the Node WebSocket client answer these control frames
+automatically; no application signaling message or Viewer timer is required. Gateway shutdown clears
+the heartbeat timer. Configure the reverse proxy's WebSocket read timeout above 25 seconds (the
+BrowShare ingress uses 75 seconds). Media and input traffic use WebRTC and do not keep an otherwise
+idle signaling socket alive.
+
 ## Metrics
 
 The Signaling CLI exposes its process-local capacity snapshot as Prometheus text on a dedicated
