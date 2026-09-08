@@ -118,6 +118,10 @@ Viewer的第一视觉主体永远是远端网页。控制界面应当像专业�
 
 基础交互遵循Material Design 3关于可点击面积、焦点、状态和无障碍的原则。Viewer本身不依赖Naive UI，以便作为Web Component嵌入任何框架。
 
+## Brand assets
+
+The project mark is the transparent vector [`assets/browshare-tab-remote-icon.svg`](assets/browshare-tab-remote-icon.svg). It shares BrowShare's blue browser frame, rounded geometry and three window controls, with a pointer and coral signal arcs identifying remote interaction. Use the SVG directly without a solid app-tile background, embedded bitmap or font dependency. Keep it legible on light and dark surfaces and preserve its square viewBox when scaling.
+
 ## Colors
 
 - 默认使用深色画布，减少视频边缘闪烁和视觉干扰。

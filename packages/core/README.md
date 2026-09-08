@@ -3,11 +3,9 @@
 Server-side Remote Tab engine for binding an Embedder-authorized Session to one already running
 Google Chrome Stable tab.
 
-## Install
+## Get started
 
-```bash
-pnpm add @browshare/remote-tab-core
-```
+Build the coordinated workspace with the [source setup guide](../../docs/getting-started.md#build-from-source).
 
 ## Attach a Session
 
@@ -67,15 +65,14 @@ For policy-owned remote navigation confirmation, enable `navigationConfirmation`
 and continues its original request only after approval. Use create-mode `deferUntilViewer: true`
 when the initial URL can need a Viewer decision. See the [navigation confirmation contract](../../docs/design/03-embedding-api.md#confirm-a-remote-navigation-0116-candidate).
 
-For retained child windows, grant the candidate `windowSelection` capability (protocol 1.2).
+For retained child windows, grant the `windowSelection` capability (protocol 1.2).
 `getAttachment()` remains the root; `getWindowState()` describes the selected window and owned
 catalog. See the [selection contract](../../docs/design/03-embedding-api.md#select-an-owned-window-0118-development-candidate)
-for command binding, cleanup and acceptance status.
+for command binding and cleanup behavior.
 
 Optional `mediaLimits` on attachSession bounds capture dimensions, FPS and bitrate for the Session.
 Limits are copied at creation, apply to every Viewer/window and survive reconnects. See
 [Session media limits](../../docs/design/03-embedding-api.md#session-media-limits-0119-candidate).
-
 
 Advanced quality requires both `qualityControl` and `advancedQuality` in the authorized Session,
 Viewer ticket and protocol-1.4 hello. Core configures the matching 0.1.23 Extension only after
@@ -84,13 +81,11 @@ across Viewer replacement. It clamps custom bitrate/FPS and passes the immutable
 to the Publisher for every mode. Older Viewers keep the existing preset wire exchange. See the
 [advanced-quality contract](../../docs/design/03-embedding-api.md#advanced-quality-unreleased-0123-protocol-14).
 
-
 The optional low-level `StartExtensionMediaRequest.captureFrameRateLimit` and
 `ReplaceExtensionCaptureRequest.captureFrameRateLimit` set the source acquisition ceiling (1–60 FPS).
 Core Sessions populate it from `mediaLimits.maxFrameRate`, independently of current quality FPS,
 so later upgrades can actually use the allowed source rate. The coordinated Extension is required
 when supplied; omission preserves the caller's viewport FPS acquisition limit.
-
 
 Await `session.close(reason)` before releasing Session ownership. A rejected cleanup keeps the
 Session reserved and may be retried. Use `core.closeSession(sessionId, reason)` when attachSession

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" role="img" aria-labelledby="title">
+  <title id="title">BrowShare Remote Tab</title>
+  <defs>
+    <linearGradient id="blue" x1="24" y1="40" x2="218" y2="228" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#168BFF"/>
+      <stop offset="1" stop-color="#0F62D6"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="36" width="208" height="172" rx="28" fill="#F8FBFF" stroke="url(#blue)" stroke-width="8"/>
+  <path d="M28 65a25 25 0 0 1 25-25h150a25 25 0 0 1 25 25v17H28Z" fill="url(#blue)"/>
+  <circle cx="48" cy="61" r="6" fill="#FF746C"/>
+  <circle cx="68" cy="61" r="6" fill="#FFD166"/>
+  <circle cx="88" cy="61" r="6" fill="#70DEA7"/>
+  <path d="M161 106a42 42 0 0 1 42 42m-42-19a19 19 0 0 1 19 19" stroke="#FF746C" stroke-width="11" stroke-linecap="round"/>
+  <path d="m105 128 8 102a5 5 0 0 0 9 3l21-24 20 30a7 7 0 0 0 10 2l16-11a7 7 0 0 0 2-10l-20-29 31-9a5 5 0 0 0 1-9l-90-50a5 5 0 0 0-8 5Z" fill="url(#blue)" stroke="#F8FBFF" stroke-width="6" stroke-linejoin="round"/>
+</svg>

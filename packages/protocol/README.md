@@ -3,11 +3,9 @@
 Runtime-validated MessagePack contracts shared by BrowShare Remote Tab Core, Extension, Gateway and
 browser clients.
 
-## Install
+## Get started
 
-```bash
-pnpm add @browshare/remote-tab-protocol
-```
+Build the coordinated workspace with the [source setup guide](../../docs/getting-started.md#build-from-source).
 
 ## Encode and decode a message
 
@@ -32,9 +30,7 @@ Protocol `1.4` rejects incompatible majors, malformed envelopes, unknown message
 fail the owning TypeBox schema. Capabilities never grant behavior by themselves; Core still applies
 the Embedder's Session authorization at each side-effect boundary.
 
-
-
-The 0.1.23 candidate exports `EncodingSettings`, `QualityConfiguration`, `QualityState` and the
+The package exports `EncodingSettings`, `QualityConfiguration`, `QualityState` and the
 corresponding `*Schema` values. Additive advanced-quality messages use `control-reliable` and require
 both `advancedQuality` and `qualityControl`. Legacy `quality.request/ack` stays unchanged. See the
 [message table and correlation rules](../../docs/design/04-control-protocol.md#advanced-quality-messages-protocol-14).
