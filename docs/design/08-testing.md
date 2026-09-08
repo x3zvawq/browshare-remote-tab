@@ -628,6 +628,26 @@ Every release records:
 - Known browser limitations.
 - npm tarball and image checksums, image digest and SBOM.
 
+### Public source and hosted candidates (2026-09-08)
+
+The public `x3zvawq/browshare-remote-tab` repository contains the initial `init` commit
+`c4457f08580812349e68c31c741d010fdd5f0c82`. Its MIT `LICENSE` and complete `CHANGELOG.md`, including
+the explicitly unpublished 0.1.23 candidate, were fetched anonymously from that exact public commit
+and compared byte for byte with the checkout. The source-publication checkbox records this result;
+it does not require or imply a version tag, npm package, public container or official CRX release.
+
+[Hosted CI](https://github.com/x3zvawq/browshare-remote-tab/actions/runs/34207712780) passed source,
+package, test, documentation and Compose checks, three container builds, GitHub provenance and the
+aggregate gate. The received candidate's 19 checksums and provenance subjects passed verification.
+Each of the six npm tarballs passed GitHub attestation verification bound to this repository,
+`.github/workflows/ci.yml`, the full source commit and `refs/heads/main`, rejecting self-hosted
+signing runners. Downloaded chrome-node, signaling and standalone SBOM checksums also passed,
+with 226, 96 and 97 packages respectively. This verifies received CI artifacts; the full current
+Chrome/Extension/Direct/TURN/browser release matrix remains a separate pending acceptance item.
+
+Credential-free results are retained under the ignored `tmp/hosted-ci-qa/`, including
+`source-publication/result.json`, `npm-attestation-result.json` and `container-sbom-result.json`.
+
 ### Correlated Notice 0.1.16 development result (2026-09-06)
 
 An isolated Linux container ran Google Chrome Stable 152.0.7977.75, the fixed-ID signed 0.1.16

@@ -1,8 +1,10 @@
 # Gate 0 and first public API freeze
 
 > [!IMPORTANT]
-> This document freezes the source-level baseline for the first stable Remote Tab API and wire
-> protocol. All workspace packages and runtime version diagnostics are coordinated at `0.1.14`.
+> This document records the source-level baseline for the first stable Remote Tab API and wire
+> protocol. That first freeze used coordinated package and runtime versions `0.1.14`; the current
+> unreleased candidate is `0.1.23` with protocol `1.4`, as recorded in
+> [the compatibility manifest](../../deploy/compatibility.json).
 > The npm, GHCR, official CRX and GitHub assets remain unpublished until the tag-gated release
 > workflow succeeds. Changing a frozen surface requires an explicit design update and the change
 > gate below; a new published compatibility set requires complete direct and TURN Gate 0 reruns.
@@ -50,7 +52,9 @@ the published compatibility table is unsupported until it completes the same Gat
 
 ## Evolving the protocol
 
-`PROTOCOL_VERSION` is `{ major: 1, minor: 0 }`. The envelope carries both numbers.
+At the first freeze, `PROTOCOL_VERSION` was `{ major: 1, minor: 0 }`. The current candidate uses
+`{ major: 1, minor: 4 }`; the envelope carries both numbers. The baseline tables below retain the
+original freeze's scope rather than claiming a completed release Gate for the newer candidate.
 
 - Increment the major version for a removed or renamed message, changed required field, changed
   field meaning, incompatible validation rule, sequence/generation semantic change, or changed
