@@ -20,6 +20,86 @@ describe('BrowserRemoteTabClient ICE recovery', () => {
     FakePeerConnection.instances.length = 0
   })
 
+  it('keeps pending playback when audio and video arrive in the same MediaStream', async () => {
+    vi.stubGlobal('WebSocket', FakeWebSocket)
+    vi.stubGlobal('RTCPeerConnection', FakePeerConnection)
+    const client = createRemoteTabClient({
+      ticket: 'viewer-ticket',
+      endpoint: 'wss://signal.example.test',
+    })
+    const stream = { id: 'remote-stream' } as MediaStream
+    const blockedReasons: string[] = []
+    client.addEventListener((event) => {
+      if (event.type === 'playback-blocked') blockedReasons.push(event.reason)
+    })
+    const assignments: (MediaProvider | null)[] = []
+    let srcObject: MediaProvider | null = null
+    const playback = Promise.withResolvers<void>()
+    const play = vi.fn(() => playback.promise)
+    const video = {
+      get srcObject() {
+        return srcObject
+      },
+      set srcObject(value: MediaProvider | null) {
+        assignments.push(value)
+        srcObject = value
+      },
+      play,
+    } as unknown as HTMLVideoElement
+    client.attachVideo(video)
+    try {
+      await connectClient(client, [])
+      const peer = FakePeerConnection.instances.at(-1)!
+      peer.dispatchEvent(eventWith('track', { track: { kind: 'video' }, streams: [stream] }))
+      peer.dispatchEvent(eventWith('track', { track: { kind: 'audio' }, streams: [stream] }))
+      expect([...assignments]).toEqual([null, stream])
+      expect(play).toHaveBeenCalledTimes(1)
+      expect(video.srcObject).toBe(stream)
+      playback.reject(new DOMException('User activation required', 'NotAllowedError'))
+      await Promise.resolve()
+      expect(blockedReasons).toEqual(['user-activation-required'])
+    } finally {
+      playback.resolve()
+      await client.disconnect()
+    }
+  })
+
+  it('binds a new stream identity and preserves detached stream updates and reattachment', async () => {
+    vi.stubGlobal('WebSocket', FakeWebSocket)
+    vi.stubGlobal('RTCPeerConnection', FakePeerConnection)
+    const client = createRemoteTabClient({
+      ticket: 'viewer-ticket',
+      endpoint: 'wss://signal.example.test',
+    })
+    const stream = { id: 'remote-stream' } as MediaStream
+    const replacement = { id: 'remote-stream' } as MediaStream
+    const detachedStream = { id: 'detached-stream' } as MediaStream
+    const play = vi.fn(async () => {})
+    const video = { srcObject: null, play } as unknown as HTMLVideoElement
+    client.attachVideo(video)
+    try {
+      await connectClient(client, [])
+      const peer = FakePeerConnection.instances.at(-1)!
+      peer.dispatchEvent(eventWith('track', { track: { kind: 'video' }, streams: [stream] }))
+      peer.dispatchEvent(eventWith('track', { track: { kind: 'video' }, streams: [replacement] }))
+      expect(video.srcObject).toBe(replacement)
+      expect(play).toHaveBeenCalledTimes(2)
+
+      client.detachVideo()
+      expect(video.srcObject).toBeNull()
+      peer.dispatchEvent(eventWith('track', { track: { kind: 'video' }, streams: [detachedStream] }))
+      expect(video.srcObject).toBeNull()
+      expect(play).toHaveBeenCalledTimes(2)
+
+      client.attachVideo(video)
+      expect(video.srcObject).toBe(detachedStream)
+      expect(play).toHaveBeenCalledTimes(3)
+    } finally {
+      await client.disconnect()
+    }
+    expect(video.srcObject).toBeNull()
+  })
+
   it('requests an ICE restart over the authenticated signaling pair and restores state', async () => {
     vi.stubGlobal('WebSocket', FakeWebSocket)
     vi.stubGlobal('RTCPeerConnection', FakePeerConnection)

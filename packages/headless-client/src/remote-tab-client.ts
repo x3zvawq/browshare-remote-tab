@@ -871,7 +871,12 @@ class BrowserRemoteTabClient implements RemoteTabClient {
         this.#diagnose({ name: 'media.track-received', kind: event.track.kind })
       }
       this.#remoteStream = event.streams[0] ?? new MediaStream([event.track])
-      if (this.#videoElement !== undefined) {
+      // Audio and video can arrive separately in the same stream. Reassigning it
+      // resets playback in Safari and can abort the first pending play request.
+      if (
+        this.#videoElement !== undefined &&
+        this.#videoElement.srcObject !== this.#remoteStream
+      ) {
         this.#videoElement.srcObject = this.#remoteStream
         this.#playVideo(this.#videoElement)
       }

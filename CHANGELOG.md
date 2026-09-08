@@ -51,6 +51,11 @@ not claim npm, GHCR, official Extension signing or GitHub Release publication.
 
 ### Fixed
 
+- Headless Client binds a shared audio/video MediaStream once, preserving pending playback when
+  its tracks arrive separately. Real Safari previously reset the media element and aborted the
+  first play request when the same stream was assigned twice; new stream replacement, reattachment
+  and explicit autoplay permission feedback remain unchanged.
+
 - Standalone creation, Viewer Ticket and capability-update requests accept the full supported
   capability set. The obsolete twelve-item limit rejected valid combinations containing newer
   quality, Notice and window capabilities; unknown and duplicate names remain invalid.
