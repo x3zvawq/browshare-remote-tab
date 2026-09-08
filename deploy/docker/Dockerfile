@@ -48,14 +48,18 @@ ENV NODE_ENV=production
 USER root
 RUN test "$(dpkg --print-architecture)" = amd64 \
   && apt-get update \
-  && apt-get install --yes --no-install-recommends ca-certificates curl fonts-liberation gosu \
+  && apt-get install --yes --no-install-recommends ca-certificates curl fontconfig fonts-liberation gosu unzip \
   && curl --fail --show-error --silent --location "$GOOGLE_CHROME_DEB_URL" --output /tmp/google-chrome.deb \
   && echo "$GOOGLE_CHROME_DEB_SHA256  /tmp/google-chrome.deb" | sha256sum --check --strict \
   && apt-get install --yes --no-install-recommends /tmp/google-chrome.deb \
   && test "$(dpkg-query -W -f='${Version}' google-chrome-stable)" = "$GOOGLE_CHROME_VERSION" \
   && rm -f /tmp/google-chrome.deb \
   && rm -rf /var/lib/apt/lists/*
+COPY --chmod=0644 deploy/docker/50-maple-mono.conf /etc/fonts/conf.d/50-maple-mono.conf
+COPY --chmod=0755 deploy/docker/install-maple-font.sh /usr/local/lib/browshare/install-maple-font.sh
+RUN /usr/local/lib/browshare/install-maple-font.sh
 COPY deploy/docker/write-managed-policy.mjs /usr/local/lib/browshare/write-managed-policy.mjs
+COPY --chmod=0644 deploy/docker/configure-chrome-fonts.mjs /usr/local/lib/browshare/configure-chrome-fonts.mjs
 COPY deploy/docker/chrome-node-entrypoint.sh /usr/local/bin/browshare-chrome-node
 RUN chmod 0755 /usr/local/bin/browshare-chrome-node \
   && mkdir -p /var/lib/browshare/chrome-profile /var/lib/browshare/remote-tab /var/log/browshare \

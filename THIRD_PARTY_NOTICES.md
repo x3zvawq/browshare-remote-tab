@@ -30,3 +30,21 @@ Official terms reviewed for this engineering boundary:
 
 The public container release set is therefore limited to application-only images that do not
 contain Google Chrome: `remote-tab-signaling` and `remote-tab-standalone`.
+
+## Maple Mono CN
+
+The source-build `chrome-node` target installs the unmodified Regular, Bold, Italic and Bold
+Italic fonts from [Maple Mono CN v7.9](https://github.com/subframe7536/maple-font/releases/tag/v7.9),
+by the Maple Mono Project Authors, under the SIL Open Font License 1.1. Its Chinese and Japanese
+glyphs derive from Resource Han Rounded, as documented by upstream. The pinned archive SHA-256
+is `cb1e79b2c23dff772ae351784ef2b84454a61b3920e9b20bd5db4bf207e4472d`.
+The complete upstream copyright and license are installed at
+`/usr/share/doc/maple-mono-cn/LICENSE.txt` alongside the runtime. Preserve these notices when
+redistributing font files. The OFL permits bundling and redistribution with software, subject
+to its terms, including retaining the license and not selling the fonts on their own. The
+separate restriction on publishing Chrome-containing images remains unchanged.
+
+The launcher sets Chrome's default standard, serif, sans-serif and fixed font families to Maple
+Mono CN before starting Chrome. It preserves other Profile preferences and does not inject CSS
+or replace a website's explicitly selected available font or web font. CJK support is substantial
+but does not cover every Unicode character; other installed fonts remain available for fallback.

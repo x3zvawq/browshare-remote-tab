@@ -218,6 +218,7 @@ Expected events:
 | Event | Purpose |
 | --- | --- |
 | `viewer-ready` | Component initialized and waiting for connection |
+| `immersive-change` | `{ immersive: boolean }`; hide or restore the Embedder header without reconnecting |
 | `connection-state-change` | Negotiating, connected, suspended, reconnecting, closed, failed |
 | `session-close-request` | User asks the Embedder to end the Session |
 | `local-open-request` | Host overrides default local-open UI |
@@ -235,6 +236,16 @@ All events except `error` bubble from the custom element. `error` is dispatched 
 element without bubbling because browsers and development servers reserve global `error` handling
 for uncaught runtime failures. Applications receive it by registering directly on the element, as
 in the examples above.
+
+### Immersive view
+
+`viewer.immersive` is a boolean property (default `false`). The visible Immersive button hides
+navigation, the address field and window controls while retaining media, connection overlays,
+Notices, dialogs and an always-visible Exit immersive button. Changes emit `immersive-change`,
+a bubbling, composed, non-cancelable local event. Embedders can follow it to hide their own
+header and footer. It does not change permissions, replace the media stream or alter the remote
+website. Escape remains available to the remote page; exit through the labeled keyboard-accessible
+button. The `immersive-button` and `immersive-exit` CSS parts expose these controls.
 
 ### Styling
 

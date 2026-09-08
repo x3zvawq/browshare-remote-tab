@@ -62,3 +62,11 @@ A connected element also exposes `configureQuality(configuration): Promise<Quali
 `@browshare/remote-tab-protocol`. Older negotiation retains the original three-preset UI and
 `quality-change` event. See the [public contract](../../docs/design/03-embedding-api.md#advanced-quality-unreleased-0123-protocol-14).
 See [testing and compatibility](../../docs/design/08-testing.md) for the desktop browser matrix and runtime requirements.
+
+### Immersive controls
+
+The toolbar uses 24px SVG icons with 44px click targets and localized labels.
+Use the Immersive button, or set `viewer.immersive = true`, to hide navigation and window controls.
+An always-visible Exit immersive button restores them. Listen for `immersive-change` with
+`event.detail.immersive` to collapse your application's header and footer as well.
+Media, input mapping, Notices and dialogs stay active; the remote website is unchanged.

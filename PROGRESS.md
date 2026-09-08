@@ -160,3 +160,8 @@
 - [ ] 签名 CRX、update manifest 和校验和发布
 - [x] SBOM、兼容性表与安全审查记录
 - [x] 安装、升级、回滚和故障排查文档
+
+## 使用体验优化
+
+- [ ] Viewer SVG 工具栏、沉浸退出与媒体输入真实验证
+- [ ] Chrome Node Maple Mono CN 默认字体与中文渲染镜像验证

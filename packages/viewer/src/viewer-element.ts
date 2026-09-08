@@ -12,12 +12,14 @@ import { assertUploadAllowed, RemoteTabError, type UploadConstraints } from '@br
 import type { Capability, QualityConfiguration, QualityState, MediaQualitySettings, MediaQualityPreset, RemoteTabState, Viewport, WindowState } from '@browshare/remote-tab-protocol'
 
 import { mapPointerToViewport } from './pointer.js'
+import { viewerIcon } from './icons.js'
 import { VIEWER_STYLES } from './styles.js'
 
 const HTMLElementBase = (globalThis.HTMLElement ?? class {}) as typeof HTMLElement
 const copy = {
   'zh-CN': {
     autoQuality: '自动', customQuality: '自定义', configureQuality: '调整自定义画质', qualityCopy: '自动模式根据网络和编码压力调整画质。自定义设置仍受会话媒体上限约束。缩小倍数 2 表示宽高各缩小一半。', bitrate: '最高码率（kbps）', frameRate: '最高帧率（FPS）', resolutionScale: '分辨率缩小倍数', qualityApply: '应用', qualityApplying: '正在应用…', qualityApplied: '已应用的编码上限', qualityUnknown: '等待发送端确认', qualityInvalid: '请输入码率 100–20000（最多三位小数）、整数帧率 1–60，以及 1–4 的分辨率缩小倍数。', qualityFailed: '画质设置失败，请重试。',
+    immersive: '沉浸模式', exitImmersive: '退出沉浸',
     windows: '远端窗口', mainWindow: '主窗口', childWindow: '附属窗口', switchingWindow: '正在切换窗口…', closeWindow: '关闭当前附属窗口',
     playback: '点击播放', playbackTitle: '浏览器需要你允许播放', playbackCopy: '连接已建立。点击播放后显示远端画面并启用可用的声音。',
     back: '后退', forward: '前进', reload: '刷新', address: '输入网址', quality: '画质', dataSaver: '节省流量', balanced: '均衡', high: '高清', fullscreen: '全屏', end: '结束',
@@ -33,6 +35,7 @@ const copy = {
   },
   'en-US': {
     autoQuality: 'Auto', customQuality: 'Custom', configureQuality: 'Adjust custom quality', qualityCopy: 'Auto adjusts quality to network and encoder pressure. Custom settings remain subject to session media limits. A downscale factor of 2 halves both width and height.', bitrate: 'Maximum bitrate (kbps)', frameRate: 'Maximum frame rate (FPS)', resolutionScale: 'Resolution downscale factor', qualityApply: 'Apply', qualityApplying: 'Applying…', qualityApplied: 'Applied encoding limits', qualityUnknown: 'Waiting for sender confirmation', qualityInvalid: 'Enter a bitrate from 100 to 20000 (up to three decimals), an integer frame rate from 1 to 60, and a resolution factor from 1 to 4.', qualityFailed: 'Quality settings failed. Please retry.',
+    immersive: 'Immersive', exitImmersive: 'Exit immersive',
     windows: 'Remote window', mainWindow: 'Main window', childWindow: 'Child window', switchingWindow: 'Switching windows…', closeWindow: 'Close current child window',
     playback: 'Start playback', playbackTitle: 'Playback needs your permission', playbackCopy: 'Connected. Start playback to show the remote screen and enable available audio.',
     back: 'Back', forward: 'Forward', reload: 'Reload', address: 'Enter address', quality: 'Quality', dataSaver: 'Data saver', balanced: 'Balanced', high: 'High', fullscreen: 'Fullscreen', end: 'End',
@@ -81,6 +84,24 @@ export class RemoteTabViewerElement extends HTMLElementBase {
 
   public iceRestartOptions: false | RemoteTabIceRestartOptions | undefined
   public reconnectOptions: false | RemoteTabReconnectOptions | undefined
+
+  #immersive = false
+
+  /** Hides Viewer chrome; Embedders can follow immersive-change to hide their own header. */
+  public get immersive(): boolean { return this.#immersive }
+  public set immersive(value: boolean) {
+    if (typeof value !== 'boolean') throw new TypeError('immersive must be a boolean')
+    if (value === this.#immersive) return
+    this.#releasePressedInput()
+    this.#immersive = value
+    this.dataset.immersive = String(value)
+    this.#required<HTMLElement>('.shell').dataset.immersive = String(value)
+    this.#required<HTMLElement>('.toolbar').hidden = value
+    this.#button('exit-immersive').hidden = !value
+    this.#button('immersive').setAttribute('aria-pressed', String(value))
+    this.#dispatch('immersive-change', { immersive: value })
+    this.#scheduleViewport()
+  }
 
   #focusPolicy: ViewerFocusPolicy | undefined
   #focusTimer: ReturnType<typeof setTimeout> | undefined
@@ -352,17 +373,18 @@ export class RemoteTabViewerElement extends HTMLElementBase {
       <div class="shell" part="shell">
         <header class="toolbar" part="toolbar">
           <div class="group">
-            <button class="button" data-action="back" part="button back-button">←<span class="sr-only"></span></button>
-            <button class="button" data-action="forward" part="button forward-button">→<span class="sr-only"></span></button>
-            <button class="button" data-action="reload" part="button reload-button">↻<span class="sr-only"></span></button>
+            <button class="button" data-action="back" part="button back-button">${viewerIcon('back')}<span class="sr-only"></span></button>
+            <button class="button" data-action="forward" part="button forward-button">${viewerIcon('forward')}<span class="sr-only"></span></button>
+            <button class="button" data-action="reload" part="button reload-button">${viewerIcon('reload')}<span class="sr-only"></span></button>
+            <button class="button immersive-button" type="button" data-action="immersive" aria-pressed="false" part="button immersive-button">${viewerIcon('immersive')}<span data-immersive-label></span></button>
           </div>
           <form class="address-form" data-address-form part="address-form">
             <input class="address" data-address type="url" autocomplete="off" spellcheck="false" part="address" />
           </form>
           <div class="group media-controls">
-            <button class="button" data-action="clipboard-copy" part="button clipboard-copy-button">⎘<span class="sr-only"></span></button>
-            <button class="button" data-action="clipboard-paste" part="button clipboard-paste-button">⇥<span class="sr-only"></span></button>
-            <button class="button keyboard-button" data-action="keyboard" part="button keyboard-button">⌨<span class="sr-only"></span></button>
+            <button class="button" data-action="clipboard-copy" part="button clipboard-copy-button">${viewerIcon('copy')}<span class="sr-only"></span></button>
+            <button class="button" data-action="clipboard-paste" part="button clipboard-paste-button">${viewerIcon('paste')}<span class="sr-only"></span></button>
+            <button class="button keyboard-button" data-action="keyboard" part="button keyboard-button">${viewerIcon('keyboard')}<span class="sr-only"></span></button>
             <label class="quality-control" data-quality-control>
               <span class="sr-only" data-quality-label></span>
               <select class="quality-select" data-quality part="quality-select">
@@ -371,17 +393,18 @@ export class RemoteTabViewerElement extends HTMLElementBase {
                 <option value="high"></option>
               </select>
             </label>
-            <button class="button" type="button" data-action="quality-custom" hidden>⚙<span class="sr-only"></span></button>
-            <button class="button" data-action="fullscreen" part="button fullscreen-button">⛶<span class="sr-only"></span></button>
+            <button class="button" type="button" data-action="quality-custom" hidden>${viewerIcon('quality')}<span class="sr-only"></span></button>
+            <button class="button" data-action="fullscreen" part="button fullscreen-button">${viewerIcon('fullscreen')}<span class="sr-only"></span></button>
             <button class="button danger" data-action="end" part="button end-button"><span data-end-label></span></button>
           </div>
           <div class="window-bar" data-window-bar hidden part="window-bar">
             <label class="window-label"><span data-window-label></span><select class="window-select" data-window-select part="window-select"></select></label>
             <span data-window-status role="status" aria-live="polite"></span>
-            <button type="button" class="button" data-action="window-close">×<span class="sr-only"></span></button>
+            <button type="button" class="button" data-action="window-close">${viewerIcon('close')}<span class="sr-only"></span></button>
           </div>
         </header>
         <main class="stage" part="stage">
+          <button class="button immersive-exit" type="button" data-action="exit-immersive" part="button immersive-exit" hidden>${viewerIcon('restore')}<span data-exit-immersive-label></span></button>
           <div class="surface" data-surface tabindex="0" role="application" part="surface">
             <video autoplay playsinline part="video"></video>
             <textarea class="ime-proxy" data-ime aria-label="Remote text input"></textarea>
@@ -650,7 +673,10 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     const button = (event.target as Element | null)?.closest<HTMLButtonElement>('[data-action]')
     const action = button?.dataset.action
     if (!action) return
-    if (action === 'quality-custom') {
+    if (action === 'immersive' || action === 'exit-immersive') {
+      this.immersive = action === 'immersive'
+      ;(this.immersive ? this.#button('exit-immersive') : this.#button('immersive')).focus({ preventScroll: true })
+    } else if (action === 'quality-custom') {
       this.#openQualityDialog()
     } else if (action === 'quality-cancel') {
       if (!this.#qualityPending) this.#closeQualityDialog()
@@ -1716,6 +1742,10 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     if (!this.#root.querySelector('.shell')) return
     const text = this.#strings
     this.#syncWindows()
+    this.#required<HTMLElement>('[data-immersive-label]').textContent = text.immersive
+    this.#required<HTMLElement>('[data-exit-immersive-label]').textContent = text.exitImmersive
+    this.#button('immersive').title = text.immersive
+    this.#button('exit-immersive').title = text.exitImmersive
     for (const [action, label] of [['back', text.back], ['forward', text.forward], ['reload', text.reload], ['clipboard-copy', text.copyRemote], ['clipboard-paste', text.pasteRemote], ['keyboard', text.keyboard], ['fullscreen', text.fullscreen]] as const) {
       const button = this.#button(action)
       button.title = label

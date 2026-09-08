@@ -65,6 +65,7 @@ wait_for_chrome() {
 }
 
 start_chrome() {
+  gosu node node /usr/local/lib/browshare/configure-chrome-fonts.mjs "$profile_directory"
   gosu node google-chrome-stable \
     --headless=new \
     --enable-extensions \

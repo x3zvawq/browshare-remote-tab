@@ -52,7 +52,14 @@ curl --version
 
 The source build requires Node.js `24.11.0` or newer, Corepack and the pnpm version declared in
 `package.json`. The Docker daemon needs outbound HTTPS access to npm registries, the pinned Node
-base image, Google Chrome's Debian package and the nginx image.
+base image, Google Chrome's Debian package, the pinned Maple Mono CN release and the nginx image.
+
+The `chrome-node` image includes Maple Mono CN v7.9 with its OFL license. Before each Chrome start,
+the launcher sets its standard, serif, sans-serif and fixed defaults for common and Chinese scripts
+to this font, preserving other Profile preferences and site data. Existing Profiles pick up the
+defaults on their next start; running Chrome preferences are not edited. Explicit website fonts
+and `@font-face` still take precedence. See [third-party notices](../THIRD_PARTY_NOTICES.md#maple-mono-cn)
+for the pinned asset, license and glyph coverage boundary.
 
 Choose the browser-reachable host or DNS name and keep the default ports unless they are already in
 use. The project name keeps this deployment's containers and volumes separate from other Compose

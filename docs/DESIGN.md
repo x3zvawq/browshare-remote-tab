@@ -155,7 +155,7 @@ Viewer使用紧凑但不微小的字体。普通控件最小13px，主要状态1
 
 ## Shapes
 
-控制条和Notice使用11px圆角，图标按钮7px。点击目标至少32×32px，触摸模式至少44×44px。焦点环位于组件外边缘并保留2px间距。
+控制条和Notice使用11px圆角，图标按钮7px。工具栏图标使用 24px 内联 SVG，点击目标至少44×44px。焦点环位于组件外边缘并保留2px间距。
 
 图标使用统一线性风格。连接、暂停、失焦、静音、本机打开和结束Session必须使用不同图形。Spinner不能替代说明性状态。
 
@@ -220,3 +220,11 @@ confirmed encoding ceilings, including downscale, separately from measured diagn
 adjustment updates the applied description while the selected mode remains Auto. A failed request
 preserves the last acknowledged state and an editable draft; it must not look like a successful
 change. `quality-configuration-change` gives an embedding application the same confirmed state.
+
+## 沉浸模式
+
+工具栏的“沉浸模式”同时收起地址栏、导航动作和远端窗口选择行；连接正常时收起状态胶囊。
+视频区域右上方始终保留带图标与文字的“退出沉浸”按钮，支持指针、触控和键盘聚焦。
+Notice、确认框、播放授权、暂停和故障遮罩保持可达，不能因隐藏工具栏而丢失。
+切换只改变本地布局并触发既有 viewport 协商，不重连媒体、不修改远端网页内容，
+也不抢占远端页面的 Escape 键。Embedder 使用 `immersive-change` 同步收起自己的页面栏。
