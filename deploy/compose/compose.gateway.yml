@@ -1,0 +1,19 @@
+name: browshare-remote-tab-gateway
+
+services:
+  signaling:
+    image: browshare/remote-tab-signaling:${REMOTE_TAB_IMAGE_TAG:-local}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      target: signaling
+    platform: linux/amd64
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - ${REMOTE_TAB_ENV_FILE:-runtime.env}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:'+(process.env.BROWSHARE_REMOTE_TAB_GATEWAY_METRICS_PORT||'9090')+'/health/live').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 10s
+      timeout: 3s
+      retries: 6

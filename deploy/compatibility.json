@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "releaseVersion": "0.1.23",
+  "node": {
+    "runtimeVersion": "24.12.0",
+    "baseImage": "node:24.12.0-bookworm-slim@sha256:7326fb2dbdce998edd72140946851be64ef4a643e8715e138ca467e8e9d92c99"
+  },
+  "chrome": {
+    "product": "Chrome/152.0.7977.75",
+    "packageVersion": "152.0.7977.75-1",
+    "debUrl": "https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_152.0.7977.75-1_amd64.deb",
+    "debSha256": "a0b7a64f768ffc0ff5ccc9260ad9ebb53fd16f7a131e2e36994da58b82d913df"
+  },
+  "extension": {
+    "version": "0.1.23"
+  },
+  "container": {
+    "seccompProfile": "deploy/docker/chrome-seccomp.json",
+    "seccompProfileSha256": "e7123c6be37b16b91502031c21bfcd0e7d64b1b6d9dfe5401467ee135832f88d",
+    "seccompBase": {
+      "repository": "https://github.com/moby/profiles",
+      "commit": "61eaf32614c7c71b60bd8927d3e6a4ffc8ff1f31",
+      "path": "seccomp/default.json"
+    },
+    "chromeNamespaceSyscalls": ["clone", "clone3", "setns", "unshare"]
+  },
+  "protocol": {
+    "major": 1,
+    "minor": 4
+  }
+}

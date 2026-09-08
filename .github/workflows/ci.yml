@@ -1,0 +1,232 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Source, packages, docs and Compose
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.12.0
+
+      - name: Install exact pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.28.2 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run workspace gate
+        run: pnpm check
+
+      - name: Lint the Viewer design system
+        run: npx --yes @google/design.md@0.4.0 lint docs/DESIGN.md
+
+      - name: Validate Compose graphs
+        run: |
+          export REMOTE_TAB_ENV_FILE=runtime.env.example
+          docker compose -f deploy/compose/compose.all-in-one.yml config --quiet
+          docker compose -f deploy/compose/compose.gateway.yml config --quiet
+          docker compose -f deploy/compose/compose.chrome-node.yml config --quiet
+
+      - name: Prepare reviewable package artifacts
+        run: pnpm artifacts:prepare
+
+      - name: Generate CycloneDX source SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: tmp/ci-artifacts/sbom-source.cdx.json
+          syft-version: v1.51.1
+          config: .syft.yaml
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate SPDX source SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: tmp/ci-artifacts/sbom-source.spdx.json
+          syft-version: v1.51.1
+          config: .syft.yaml
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Finalize checksums and local build record
+        run: node tools/ci/finalize-artifacts.mjs
+
+      - name: Verify SBOMs, checksums and build record
+        run: node tools/ci/verify-artifacts.mjs
+
+      - name: Retain package and unpacked Extension artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: remote-tab-${{ github.sha }}
+          path: tmp/ci-artifacts
+          if-no-files-found: error
+          retention-days: 14
+
+  containers:
+    name: Container targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build Signaling image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          target: signaling
+          load: true
+          push: false
+          tags: browshare/remote-tab-signaling:ci
+          cache-from: type=gha,scope=remote-tab-containers
+          cache-to: type=gha,mode=max,scope=remote-tab-containers
+
+      - name: Build Chrome-node image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          target: chrome-node
+          load: true
+          push: false
+          tags: browshare/remote-tab-chrome-node:ci
+          cache-from: type=gha,scope=remote-tab-containers
+          cache-to: type=gha,mode=max,scope=remote-tab-containers
+
+      - name: Build Standalone image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          target: standalone
+          load: true
+          push: false
+          tags: browshare/remote-tab-standalone:ci
+          cache-from: type=gha,scope=remote-tab-containers
+          cache-to: type=gha,mode=max,scope=remote-tab-containers
+
+      - name: Create container SBOM directory
+        run: mkdir -p tmp/container-sboms
+
+      - name: Generate Signaling SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: browshare/remote-tab-signaling:ci
+          format: spdx-json
+          output-file: tmp/container-sboms/signaling.spdx.json
+          syft-version: v1.51.1
+          config: .syft.yaml
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate Chrome-node SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: browshare/remote-tab-chrome-node:ci
+          format: spdx-json
+          output-file: tmp/container-sboms/chrome-node.spdx.json
+          syft-version: v1.51.1
+          config: .syft.yaml
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate Standalone SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: browshare/remote-tab-standalone:ci
+          format: spdx-json
+          output-file: tmp/container-sboms/standalone.spdx.json
+          syft-version: v1.51.1
+          config: .syft.yaml
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Checksum container SBOMs
+        working-directory: tmp/container-sboms
+        run: |
+          sha256sum *.spdx.json > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Retain container SBOMs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: remote-tab-container-sboms-${{ github.sha }}
+          path: tmp/container-sboms
+          if-no-files-found: error
+          retention-days: 14
+
+  attest:
+    name: GitHub build provenance
+    if: github.event_name != 'pull_request'
+    needs:
+      - verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download retained artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: remote-tab-${{ github.sha }}
+          path: tmp/ci-artifacts
+
+      - name: Attest artifact checksums
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          subject-checksums: tmp/ci-artifacts/SHA256SUMS
+
+  gate:
+    name: Merge and release-candidate gate
+    if: always()
+    needs:
+      - verify
+      - containers
+      - attest
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require every owning job
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          CONTAINERS_RESULT: ${{ needs.containers.result }}
+          ATTEST_RESULT: ${{ needs.attest.result }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          test "$VERIFY_RESULT" = success
+          test "$CONTAINERS_RESULT" = success
+          if [ "$EVENT_NAME" = pull_request ]; then
+            test "$ATTEST_RESULT" = skipped
+          else
+            test "$ATTEST_RESULT" = success
+          fi

@@ -1,0 +1,18 @@
+{
+  "name": "@browshare/remote-tab-example-embed",
+  "version": "0.1.23",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@browshare/remote-tab-viewer": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "catalog:"
+  }
+}

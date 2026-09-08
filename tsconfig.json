@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "paths": {
+      "@browshare/remote-tab-protocol": ["./packages/protocol/src/index.ts"],
+      "@browshare/remote-tab-core": ["./packages/core/src/index.ts"],
+      "@browshare/remote-tab-client": ["./packages/headless-client/src/index.ts"],
+      "@browshare/remote-tab-viewer": ["./packages/viewer/src/index.ts"],
+      "@browshare/remote-tab-extension": ["./packages/extension/src/index.ts"]
+    },
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@browshare/remote-tab-extension-signing",
+  "version": "0.1.23",
+  "description": "Signing and managed-policy contract types for the Remote Tab extension",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/x3zvawq/browshare-remote-tab.git",
+    "directory": "tools/extension-signing"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "browshare-extension": "./dist/cli.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown --config tsdown.config.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "check:exports": "publint"
+  },
+  "dependencies": {
+    "fflate": "catalog:"
+  }
+}

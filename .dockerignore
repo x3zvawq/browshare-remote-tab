@@ -1,0 +1,13 @@
+.git
+.DS_Store
+tmp
+node_modules
+**/node_modules
+**/dist
+**/build
+coverage
+.env
+.env.*
+!.env.example
+deploy/compose/runtime.env
+deploy/compose/extension-release

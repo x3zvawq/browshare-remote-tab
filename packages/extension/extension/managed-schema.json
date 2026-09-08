@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-03/schema#",
+  "type": "object",
+  "properties": {
+    "loopbackUrl": {
+      "type": "string",
+      "description": "Loopback-only WebSocket endpoint exposed by Remote Tab Core."
+    },
+    "runtimeSecret": {
+      "type": "string",
+      "description": "Per-runtime secret shared only with Remote Tab Core."
+    },
+    "runtimeGeneration": {
+      "type": "string",
+      "description": "Generation identifier invalidated whenever the controlled Chrome runtime changes."
+    }
+  },
+  "required": ["loopbackUrl", "runtimeSecret", "runtimeGeneration"]
+}

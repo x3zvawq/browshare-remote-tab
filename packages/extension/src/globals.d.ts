@@ -1,0 +1,1 @@
+declare const __BROWSHARE_EXTENSION_VERSION__: string

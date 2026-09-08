@@ -1,0 +1,336 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Freeze and build release assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.12.0
+
+      - name: Install exact pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.28.2 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Require the coordinated stable tag
+        run: pnpm release:check --tag "${GITHUB_REF_NAME}"
+
+      - name: Run the complete workspace gate
+        run: pnpm check
+
+      - name: Lint the Viewer design system
+        run: npx --yes @google/design.md@0.4.0 lint docs/DESIGN.md
+
+      - name: Validate Compose graphs
+        run: |
+          export REMOTE_TAB_ENV_FILE=runtime.env.example
+          docker compose -f deploy/compose/compose.all-in-one.yml config --quiet
+          docker compose -f deploy/compose/compose.gateway.yml config --quiet
+          docker compose -f deploy/compose/compose.chrome-node.yml config --quiet
+
+      - name: Prepare package artifacts
+        run: pnpm artifacts:prepare
+
+      - name: Generate CycloneDX source SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: tmp/ci-artifacts/sbom-source.cdx.json
+          syft-version: v1.51.1
+          config: .syft.yaml
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate SPDX source SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: tmp/ci-artifacts/sbom-source.spdx.json
+          syft-version: v1.51.1
+          config: .syft.yaml
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Finalize and verify source artifacts
+        run: |
+          pnpm artifacts:finalize
+          pnpm artifacts:verify
+
+      - name: Retain immutable source artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: remote-tab-release-source-${{ github.sha }}
+          path: tmp/ci-artifacts
+          if-no-files-found: error
+          retention-days: 30
+
+  npm:
+    name: Publish public npm packages
+    needs:
+      - preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Set up Node.js for npm trusted publishing
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.12.0
+
+      - name: Download reviewed package artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: remote-tab-release-source-${{ github.sha }}
+          path: tmp/ci-artifacts
+
+      - name: Publish or verify every package
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(tmp/ci-artifacts/npm/*.tgz)
+          test "${#packages[@]}" -eq 6
+          for archive in "${packages[@]}"; do
+            package_json="$(tar -xOzf "$archive" package/package.json)"
+            package_name="$(printf '%s' "$package_json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).name")"
+            package_version="$(printf '%s' "$package_json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")"
+            local_integrity="sha512-$(openssl dgst -sha512 -binary "$archive" | openssl base64 -A)"
+            published_integrity="$(npm view "${package_name}@${package_version}" dist.integrity --json 2>/dev/null | tr -d '"\n' || true)"
+            if [ -n "$published_integrity" ]; then
+              test "$published_integrity" = "$local_integrity"
+              printf 'Verified existing %s@%s\n' "$package_name" "$package_version"
+            else
+              npm publish "$archive" --access public --provenance
+            fi
+          done
+
+  containers:
+    name: Publish ${{ matrix.image }} image
+    needs:
+      - preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: signaling
+            target: signaling
+          - image: standalone
+            target: standalone
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Resolve lowercase image name
+        id: image
+        shell: bash
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "name=ghcr.io/${owner}/browshare-remote-tab-${{ matrix.image }}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: metadata
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=BrowShare Remote Tab ${{ matrix.image }}
+            org.opencontainers.image.description=Chrome-free BrowShare Remote Tab ${{ matrix.image }} service
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and publish the Chrome-free image
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=remote-tab-release-${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=remote-tab-release-${{ matrix.target }}
+
+      - name: Attest the published image digest
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  extension:
+    name: Sign the official Chrome Extension
+    needs:
+      - preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.12.0
+
+      - name: Install exact pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.28.2 --activate
+
+      - name: Install and build signing inputs
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @browshare/remote-tab-extension build
+          pnpm --filter @browshare/remote-tab-extension-signing build
+
+      - name: Materialize the release-only private key
+        shell: bash
+        env:
+          EXTENSION_PRIVATE_KEY_PEM: ${{ secrets.BROWSHARE_EXTENSION_PRIVATE_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          test -n "$EXTENSION_PRIVATE_KEY_PEM"
+          umask 077
+          mkdir -p tmp/extension-signing
+          printf '%s' "$EXTENSION_PRIVATE_KEY_PEM" > tmp/extension-signing/private.pem
+
+      - name: Sign and verify the official Extension
+        shell: bash
+        env:
+          EXPECTED_EXTENSION_ID: ${{ secrets.BROWSHARE_EXTENSION_ID }}
+        run: |
+          set -euo pipefail
+          test "${#EXPECTED_EXTENSION_ID}" -eq 32
+          release_base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/"
+          node tools/extension-signing/dist/cli.mjs build \
+            --source packages/extension/build/chrome \
+            --key tmp/extension-signing/private.pem \
+            --out tmp/signed-extension \
+            --base-url "$release_base_url" > tmp/signing-result.json
+          pnpm release:prepare-extension \
+            --signing-result tmp/signing-result.json \
+            --out tmp/extension-release \
+            --expected-extension-id "$EXPECTED_EXTENSION_ID"
+
+      - name: Remove temporary signing material
+        if: always()
+        run: rm -f tmp/extension-signing/private.pem tmp/signing-result.json
+
+      - name: Retain signed Extension artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: remote-tab-release-extension-${{ github.sha }}
+          path: tmp/extension-release
+          if-no-files-found: error
+          retention-days: 30
+
+  source-release:
+    name: Publish GitHub source release
+    needs:
+      - preflight
+      - npm
+      - containers
+      - extension
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.12.0
+
+      - name: Download reviewed source artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: remote-tab-release-source-${{ github.sha }}
+          path: tmp/ci-artifacts
+
+      - name: Download signed Extension artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: remote-tab-release-extension-${{ github.sha }}
+          path: tmp/extension-release
+
+      - name: Assemble and verify release assets
+        run: node tools/ci/assemble-release.mjs
+
+      - name: Attest release checksums
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          subject-checksums: tmp/release-assets/SHA256SUMS
+
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; refusing to replace immutable assets" >&2
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "BrowShare Remote Tab ${GITHUB_REF_NAME#v}" \
+            --notes-file CHANGELOG.md \
+            tmp/release-assets/*
+

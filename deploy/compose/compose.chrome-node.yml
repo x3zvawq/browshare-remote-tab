@@ -1,0 +1,47 @@
+name: browshare-remote-tab-chrome-node
+
+services:
+  extension-updates:
+    image: nginx:1.27.5-alpine
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:${REMOTE_TAB_EXTENSION_UPDATE_PORT:-8090}:80
+    volumes:
+      - ${REMOTE_TAB_EXTENSION_RELEASE_DIR:-./extension-release}:/usr/share/nginx/html:ro
+
+  chrome-node:
+    image: browshare/remote-tab-chrome-node:${REMOTE_TAB_IMAGE_TAG:-local}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      target: chrome-node
+      args:
+        GOOGLE_CHROME_VERSION: 152.0.7977.75-1
+        GOOGLE_CHROME_DEB_URL: https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_152.0.7977.75-1_amd64.deb
+        GOOGLE_CHROME_DEB_SHA256: a0b7a64f768ffc0ff5ccc9260ad9ebb53fd16f7a131e2e36994da58b82d913df
+    platform: linux/amd64
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - ${REMOTE_TAB_ENV_FILE:-runtime.env}
+    security_opt:
+      - seccomp=${REMOTE_TAB_CHROME_SECCOMP_PROFILE:-../docker/chrome-seccomp.json}
+    shm_size: 2gb
+    volumes:
+      - chrome-profile:/var/lib/browshare/chrome-profile
+      - remote-tab-temp:/var/lib/browshare/remote-tab
+      - chrome-logs:/var/log/browshare
+    depends_on:
+      extension-updates:
+        condition: service_started
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:'+(process.env.BROWSHARE_REMOTE_TAB_API_PORT||'9230')+'/health/ready').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  chrome-profile:
+  remote-tab-temp:
+  chrome-logs:

@@ -1,0 +1,22 @@
+{
+  "name": "@browshare/remote-tab-standalone",
+  "version": "0.1.23",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "browshare-remote-tab-standalone": "./dist/cli.mjs"
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts src/cli.ts --format esm --dts --clean",
+    "start": "node dist/cli.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@browshare/remote-tab-core": "workspace:*",
+    "@browshare/remote-tab-protocol": "workspace:*",
+    "typebox": "catalog:"
+  },
+  "devDependencies": {
+    "ws": "catalog:"
+  }
+}

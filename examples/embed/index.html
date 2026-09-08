@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>BrowShare Remote Tab · Embed example</title>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div>
+          <span class="eyebrow">BROWSHARE REMOTE TAB</span>
+          <h1>Viewer 嵌入示例</h1>
+          <p>使用一个短期、单次 Viewer Ticket 连接指定 Gateway。Ticket 只保存在当前页面内存中。</p>
+        </div>
+        <a href="../../docs/design/03-embedding-api.md">Embedding API</a>
+      </header>
+
+      <section class="workspace">
+        <aside class="connection-card">
+          <form id="connection-form">
+            <label>Gateway endpoint<input id="endpoint" type="url" placeholder="wss://signal.example.com" required /></label>
+            <label>Viewer ticket<textarea id="ticket" rows="5" placeholder="粘贴短期单次 Ticket" required></textarea></label>
+            <label class="check"><input id="background-streaming" type="checkbox" /> 失焦后继续传输</label>
+            <div class="actions"><button class="primary" type="submit">连接 Viewer</button><button id="disconnect" type="button" disabled>断开</button></div>
+            <div class="actions"><button id="suspend" type="button" disabled>暂停传输</button><button id="resume" type="button" disabled>继续传输</button></div>
+          </form>
+          <div class="event-log" aria-live="polite"><strong>事件</strong><ol id="events"></ol></div>
+        </aside>
+        <section class="viewer-host" id="viewer-host">
+          <div class="empty"><span>⌁</span><strong>等待 Viewer Ticket</strong><p>启动 Standalone 或 Embedder Session 后，把返回的连接信息填到左侧。</p></div>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

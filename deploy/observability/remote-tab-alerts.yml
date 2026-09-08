@@ -1,0 +1,103 @@
+groups:
+  - name: browshare-remote-tab-capacity
+    rules:
+      - alert: RemoteTabSignalingConnectionCapacityHigh
+        expr: |
+          browshare_remote_tab_signaling_connections_active
+          / on (job, instance)
+          browshare_remote_tab_signaling_connections_max >= 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Remote Tab signaling connection capacity is above 80%
+          description: Scale or drain this Gateway before it reaches its configured connection ceiling.
+
+      - alert: RemoteTabSignalingConnectionCapacityCritical
+        expr: |
+          browshare_remote_tab_signaling_connections_active
+          / on (job, instance)
+          browshare_remote_tab_signaling_connections_max >= 0.95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Remote Tab signaling connection capacity is above 95%
+          description: New WebSocket connections are close to receiving close code 1013.
+
+      - alert: RemoteTabSignalingPairCapacityHigh
+        expr: |
+          browshare_remote_tab_signaling_pairs_tracked
+          / on (job, instance)
+          browshare_remote_tab_signaling_pairs_max >= 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Remote Tab signaling pair capacity is above 80%
+          description: Inspect unmatched peers and scale or drain this Gateway.
+
+      - alert: RemoteTabSignalingTicketReplayCapacityHigh
+        expr: |
+          browshare_remote_tab_signaling_consumed_tickets
+          / on (job, instance)
+          browshare_remote_tab_signaling_consumed_tickets_max >= 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Remote Tab consumed-Ticket replay capacity is above 90%
+          description: Check Ticket lifetimes and request volume before capacity rejects valid pairings.
+
+      - alert: RemoteTabSignalingConnectionsRejected
+        expr: increase(browshare_remote_tab_signaling_connections_rejected_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Remote Tab signaling is rejecting connections
+          description: Check total and immediate-peer address ceilings before raising limits.
+
+      - alert: RemoteTabSignalingRateLimited
+        expr: increase(browshare_remote_tab_signaling_rate_limited_connections_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Remote Tab signaling clients are being rate limited
+          description: Identify faulty client behavior or deliberate abuse without logging message payloads.
+
+      - alert: RemoteTabStandaloneSessionCapacityHigh
+        expr: |
+          sum by (job, instance) (browshare_remote_tab_standalone_sessions)
+          / on (job, instance)
+          max by (job, instance) (browshare_remote_tab_standalone_sessions_max) >= 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Remote Tab Standalone Session capacity is above 80%
+          description: Drain this runtime or add an independently managed Chrome runtime before capacity is full.
+
+      - alert: RemoteTabStandaloneSessionCapacityFull
+        expr: |
+          sum by (job, instance) (browshare_remote_tab_standalone_sessions)
+          >= on (job, instance)
+          max by (job, instance) (browshare_remote_tab_standalone_sessions_max)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Remote Tab Standalone Session capacity is full
+          description: New Sessions receive SESSION_CAPACITY_REACHED until capacity is released.
+
+      - alert: RemoteTabMetricsMissing
+        expr: |
+          absent_over_time(browshare_remote_tab_signaling_connections_max[5m])
+          or absent_over_time(browshare_remote_tab_standalone_sessions_max[5m])
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Remote Tab metrics have disappeared
+          description: Check process liveness, the private scrape path, and Prometheus target health.

@@ -1,0 +1,35 @@
+{
+  "name": "@browshare/remote-tab-protocol",
+  "version": "0.1.23",
+  "description": "Runtime-validated protocol contracts for BrowShare Remote Tab",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/x3zvawq/browshare-remote-tab.git",
+    "directory": "packages/protocol"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist"],
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --dts --clean",
+    "typecheck": "tsc -p tsconfig.json",
+    "check:exports": "publint"
+  },
+  "dependencies": {
+    "@msgpack/msgpack": "catalog:",
+    "typebox": "catalog:"
+  }
+}
