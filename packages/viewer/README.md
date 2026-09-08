@@ -70,3 +70,10 @@ Use the Immersive button, or set `viewer.immersive = true`, to hide navigation a
 An always-visible Exit immersive button restores them. Listen for `immersive-change` with
 `event.detail.immersive` to collapse your application's header and footer as well.
 Media, input mapping, Notices and dialogs stay active; the remote website is unchanged.
+
+### Remote cursor
+
+When `cursorFeedback` is negotiated with a protocol-1.5 Core and matching Extension, `cursor-change`
+reports a standard CSS cursor keyword. The Viewer applies it locally; custom cursor images and page
+content are never copied. See the [cursor contract](../../docs/design/04-control-protocol.md#cursor-feedback)
+for frame, shadow-root, navigation and compatibility behavior.

@@ -1,3 +1,4 @@
+import { CdpCursorObserver } from './cdp-cursor.js'
 import { rm } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 
@@ -827,6 +828,7 @@ export interface CdpNavigationBlockedEvent {
 }
 
 export type CdpTabEvent =
+  | { type: 'cursor-changed'; cursor: import('@browshare/remote-tab-protocol').CursorKind }
   | CdpTabLocationEvent
   | CdpTabTitleEvent
   | CdpFileChooserEvent
@@ -849,6 +851,8 @@ export interface CdpTabController {
   readonly title: string | undefined
   readonly currentUrl: string
   observeTitle(): Promise<void>
+  observeCursor(): Promise<void>
+  readonly cursor: import('@browshare/remote-tab-protocol').CursorKind
   sampleFrameChange(): Promise<boolean>
   setViewport(request: CdpViewportRequest): Promise<CdpViewport>
   dispatchPointer(input: CdpPointerInput): Promise<void>
@@ -1167,6 +1171,17 @@ class CdpTabControllerImplementation implements CdpTabController {
     return this.#title
   }
 
+  #cursor: import('@browshare/remote-tab-protocol').CursorKind = 'default'
+  public get cursor(): import('@browshare/remote-tab-protocol').CursorKind { return this.#cursor }
+  #cursorObserver: CdpCursorObserver | undefined
+
+  public async observeCursor(): Promise<void> {
+    if (this.#cursorObserver) return
+    const observer = new CdpCursorObserver(this.#connection, this.#sessionId, cursor => { this.#cursor = cursor; this.#emit({ type: 'cursor-changed', cursor }) })
+    this.#cursorObserver = observer
+    await observer.start()
+  }
+
   public async observeTitle(): Promise<void> {
     await this.#call('Runtime.addBinding', { name: TITLE_BINDING, executionContextName: TITLE_WORLD })
     await this.#call('Page.addScriptToEvaluateOnNewDocument', {
@@ -1226,6 +1241,7 @@ class CdpTabControllerImplementation implements CdpTabController {
       throw new RangeError('Pointer coordinates must be inside the acknowledged remote viewport')
     }
 
+    this.#cursorObserver?.pointer(input.x, input.y)
     await this.#call('Input.dispatchMouseEvent', {
       type: input.type,
       x: input.x,
@@ -1653,6 +1669,7 @@ class CdpTabControllerImplementation implements CdpTabController {
     if (this.#closed) return
     this.#closed = true
     this.#detached = true
+    await this.#cursorObserver?.close()
     this.#pendingNavigation?.abort.abort()
     this.#pageScriptNotices?.cancelAll()
     this.#mainWorldContexts.clear()
@@ -1687,6 +1704,7 @@ class CdpTabControllerImplementation implements CdpTabController {
   }
 
   async #closeTargets(): Promise<void> {
+    await this.#cursorObserver?.close(this.#browserClosed)
     let recovery: CdpConnection | undefined
     try {
       await Promise.allSettled([...this.#downloads.keys()].map(guid => this.removeDownload(guid)))

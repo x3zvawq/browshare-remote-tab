@@ -1,6 +1,6 @@
 {
   "name": "@browshare/remote-tab-extension-signing",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Signing and managed-policy contract types for the Remote Tab extension",
   "license": "MIT",
   "repository": {

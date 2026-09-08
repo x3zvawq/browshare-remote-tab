@@ -317,3 +317,19 @@ observation window before retrying. Stopping the Publisher closes its stats time
 The implementation resides in `packages/extension/src/media-quality-policy.ts` and `offscreen.ts`;
 the [focused development evidence](08-testing.md#advanced-quality-development-evidence-2026-09-06-unpublished-0123--protocol-14)
 records real pressure/recovery results and the remaining candidate acceptance.
+
+## Cursor observation and input scheduling
+
+`CdpCursorObserver` installs a named isolated-world observer on the attached page and its iframe
+targets, including nested out-of-process frames. It reports standard cursor keywords through a
+named binding, checks the binding's isolated execution context, and publishes only changed
+presentation. The page cannot call the binding from its main world. Subframe cursor changes are checked against
+Chrome hit testing before publication, so late iframe pointer events cannot override a parent-page
+overlay. This check runs on cursor changes, not on every pointer movement. DOM hit testing follows open
+shadow roots and respects computed inheritance; iframe documents own their own hit tests.
+
+The Extension 0.1.24 rebuild includes protocol 1.5's strict `cursor.changed` schema; Core negotiates
+`cursorFeedback` before sending it. No Extension host permission is added. Media settings retain
+`contentHint = detail`, existing encoder bounds and Chrome congestion control. Passive hover input
+coalescing occurs before CDP dispatch and cannot cross another queued operation; files, clipboard,
+IME and reliable input retain their existing protocols.

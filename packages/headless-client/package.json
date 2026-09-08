@@ -1,6 +1,6 @@
 {
   "name": "@browshare/remote-tab-client",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Browser client contracts for BrowShare Remote Tab",
   "license": "MIT",
   "repository": {

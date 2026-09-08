@@ -12,7 +12,7 @@ export interface ProtocolCompatibility {
   remote: ProtocolVersion
 }
 
-export const PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 4 }) satisfies ProtocolVersion
+export const PROTOCOL_VERSION = Object.freeze({ major: 1, minor: 5 }) satisfies ProtocolVersion
 
 export function assessProtocolVersion(remote: ProtocolVersion): ProtocolCompatibility {
   let relationship: ProtocolVersionRelationship

@@ -35,7 +35,7 @@ interface RecordedCdpCommand {
 }
 
 describe('RemoteTabCore', () => {
-  it('orchestrates one authorized tab from attachment through control and cleanup', async () => {
+  it.each([4, 5])('orchestrates one authorized tab through control and cleanup with minor %i', async minor => {
     const downloadDirectory = await mkdtemp(join(tmpdir(), 'remote-tab-core-downloads-'))
     const cdp = await createCdpFixture()
     const loopback = new ExtensionLoopbackServer({
@@ -121,7 +121,7 @@ describe('RemoteTabCore', () => {
         cdpEndpoint: cdp.endpoint,
         tab: { mode: 'create', initialUrl: 'https://example.test/' },
         capabilities: [
-          'navigation', 'backForward', 'reload', 'localOpen', 'qualityControl', 'upload', 'download', 'noticeRequests',
+          'navigation', 'backForward', 'reload', 'localOpen', 'qualityControl', 'upload', 'download', 'noticeRequests', 'cursorFeedback',
         ],
         signaling: {
           gatewayId: 'gateway-1',
@@ -225,7 +225,7 @@ describe('RemoteTabCore', () => {
         viewerGeneration: 1,
         gatewayId: 'gateway-1',
         capabilities: [
-          'navigation', 'backForward', 'reload', 'localOpen', 'qualityControl', 'upload', 'download', 'noticeRequests',
+          'navigation', 'backForward', 'reload', 'localOpen', 'qualityControl', 'upload', 'download', 'noticeRequests', 'cursorFeedback',
         ],
         expiresInSeconds: 60,
       })
@@ -269,7 +269,7 @@ describe('RemoteTabCore', () => {
           sessionId: 'session-1',
           viewerGeneration: 1,
           capabilities: [
-            'navigation', 'backForward', 'reload', 'localOpen', 'qualityControl', 'upload', 'download', 'noticeRequests',
+            'navigation', 'backForward', 'reload', 'localOpen', 'qualityControl', 'upload', 'download', 'noticeRequests', 'cursorFeedback',
           ],
           iceServers: [{ urls: ['stun:stun.example.test:3478'] }],
         }),
@@ -333,10 +333,11 @@ describe('RemoteTabCore', () => {
         encodeProtocolMessage(
           createProtocolMessage(
             'hello',
-            { sessionId: 'session-1', viewerGeneration: 1, sequence: 1 },
+            { sessionId: 'session-1', viewerGeneration: 1, sequence: 1, minor },
             {
               clientVersion: 'test-viewer',
               capabilities: [
+                'cursorFeedback',
                 'navigation',
                 'backForward',
                 'reload',
@@ -357,6 +358,14 @@ describe('RemoteTabCore', () => {
         payload: { viewport: { width: 1280, height: 720, frameRate: 30, revision: 1 } },
       })
       await expect(mediaInbox.nextControl()).resolves.toMatchObject({ type: 'quality.ack', payload: { preset: 'balanced' } })
+      if (minor >= 5) await expect(mediaInbox.nextControl()).resolves.toMatchObject({ type: 'cursor.changed', payload: { cursor: 'default', viewportRevision: 1, windowRevision: 0 } })
+      cdp.emitEvent('Runtime.executionContextCreated', { context: { id: 90, name: 'browshare.cursor', uniqueId: 'cursor-world', auxData: { frameId: 'frame-1', isDefault: false } } })
+      cdp.emitEvent('Runtime.bindingCalled', { name: '__browshareCursor', executionContextId: 90, payload: 'text' })
+      if (minor >= 5) await expect(mediaInbox.nextControl()).resolves.toMatchObject({ type: 'cursor.changed', payload: { cursor: 'text' } })
+      // Old-minor peers and arbitrary main-world/URL payloads produce no extra control message.
+      cdp.emitEvent('Runtime.bindingCalled', { name: '__browshareCursor', executionContextId: 91, payload: 'pointer' })
+      cdp.emitEvent('Runtime.bindingCalled', { name: '__browshareCursor', executionContextId: 90, payload: 'url(secret)' })
+
       expect(session.getState()).toBe('CONNECTED')
 
       const noticeBody = { kind: 'confirm' as const, title: 'Continue?', body: 'Plain <b>text</b>', buttons: [{ id: 'continue', label: 'Continue' }] }
@@ -973,7 +982,28 @@ describe('RemoteTabCore', () => {
           ) as ProtocolMessage,
         ),
       )
-      await waitUntil(() => cdp.commands.some((command) => command.method === 'Input.dispatchMouseEvent'))
+      await waitUntil(() => cdp.commands.some((command) => command.method === 'Input.dispatchMouseEvent' && command.params?.x === 20 && command.params?.y === 30))
+
+      const hoverStart = cdp.commands.length
+      const pausedHover = cdp.pauseNextCommand('Input.dispatchMouseEvent')
+      const hover = (x: number, sequence: number) => media.send(encodeProtocolMessage(createProtocolMessage('input.pointer',
+        { sessionId: session.id, viewerGeneration: 1, sequence },
+        { event: 'mouseMoved', x, y: 30, viewportRevision: 1, button: 'none', buttons: 0, modifiers: 0, clickCount: 0 },
+      )))
+      hover(1, 100)
+      await pausedHover.observed
+      for (let x = 2; x <= 100; x++) hover(x, 100 + x)
+      media.send(encodeProtocolMessage(createProtocolMessage('input.key',
+        { sessionId: session.id, viewerGeneration: 1, sequence: 201 },
+        { event: 'keyUp', key: 'Shift', code: 'ShiftLeft', modifiers: 0 },
+      )))
+      hover(200, 202)
+      hover(250, 203)
+      await new Promise(resolve => setTimeout(resolve, 20))
+      pausedHover.resume()
+      await waitUntil(() => cdp.commands.some(command => command.method === 'Input.dispatchMouseEvent' && command.params?.x === 250))
+      expect(cdp.commands.slice(hoverStart).filter(command => ['Input.dispatchMouseEvent', 'Input.dispatchKeyEvent'].includes(command.method))
+        .map(command => command.method === 'Input.dispatchKeyEvent' ? 'key' : command.params?.x)).toEqual([1, 100, 'key', 250])
 
       media.send(
         encodeProtocolMessage(
@@ -991,7 +1021,7 @@ describe('RemoteTabCore', () => {
           ) as ProtocolMessage,
         ),
       )
-      await waitUntil(() => cdp.commands.some((command) => command.method === 'Input.dispatchKeyEvent'))
+      await waitUntil(() => cdp.commands.some((command) => command.method === 'Input.dispatchKeyEvent' && command.params?.key === 'B'))
       expect(cdp.commands).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -1353,7 +1383,7 @@ function bindExtensionPeer(socket: WebSocket, role: 'service-worker' | 'media'):
       role,
       secret: '0123456789abcdef0123456789abcdef',
       extensionId: 'c'.repeat(32),
-      extensionVersion: '0.1.23',
+      extensionVersion: '0.1.24',
       runtimeGeneration: 'runtime-3',
     }),
   )

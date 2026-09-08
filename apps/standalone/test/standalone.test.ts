@@ -253,9 +253,9 @@ describe('Standalone Embedder API', () => {
     expect(capabilityReport).toMatchObject({
       status: 'not-ready',
       versions: {
-        standalone: '0.1.23',
-        core: '0.1.23',
-        controlProtocol: { major: 1, minor: 4 },
+        standalone: '0.1.24',
+        core: '0.1.24',
+        controlProtocol: { major: 1, minor: 5 },
         extension: { extensionId: configuration.extension.id, coherent: false },
       },
     })

@@ -441,3 +441,28 @@ as the capture source limit. A Publisher starts with bounded legacy encoding set
 then Core configures advanced mode after hello. Low-level loopback configuration carries the Session
 ceiling on every request; all three modes remain bounded. See the
 [public types and call semantics](03-embedding-api.md#advanced-quality-unreleased-0123-protocol-14).
+
+## Cursor feedback
+
+The separately negotiated `cursorFeedback` capability requires protocol minor 5 and the coordinated
+0.1.24 Extension. Core sends `cursor.changed` with `{ cursor, viewportRevision, windowRevision }`
+only for the currently selected, connected Tab. The envelope already binds Session and Viewer
+generation. Client ignores retired viewport/window revisions and rejects unnegotiated feedback.
+`cursor` is a fixed standard CSS keyword from `CURSOR_KINDS`; arbitrary CSS and `url(...)` values are
+invalid. A page's custom cursor uses its standard keyword fallback.
+
+The local Viewer cursor changes without waiting for encoded video. Input, textarea, editable text,
+links, inherited CSS, same-origin frames, out-of-process cross-origin frames and open shadow roots
+are read through isolated CDP worlds. Computed `auto` is resolved to text or default using editable
+elements and text hit geometry. Closed shadow internals and browser-owned controls that expose no
+DOM remain represented by their host/default cursor. No page body, text selection, cursor image,
+CSS URL or remote pointer position is mirrored to the Viewer.
+
+Navigation/context destruction clears the relevant cursor, and Viewer reconnect, viewport changes,
+window switches and capability removal reset local presentation. Cursor observation belongs only
+to the owned page and its iframe targets. Observer scripts/listeners and iframe attachment are
+removed on detach/close; browser page popup ownership remains in the existing Core lifecycle.
+
+Media remains the rendering authority: no predicted scroll translation or local page reconstruction
+is performed. Passive hover queue coalescing reduces obsolete CDP work under load without dropping
+wheel deltas, drawing/dragging samples, clicks, key events or IME commits.

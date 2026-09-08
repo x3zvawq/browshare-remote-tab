@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BrowShare Remote Tab",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Publishes an Embedder-authorized Chrome tab through BrowShare Remote Tab.",
   "permissions": ["debugger", "offscreen", "storage", "tabCapture", "tabs"],
   "host_permissions": ["http://127.0.0.1/*", "http://[::1]/*"],

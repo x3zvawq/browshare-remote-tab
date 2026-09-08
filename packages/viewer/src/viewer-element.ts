@@ -569,11 +569,14 @@ export class RemoteTabViewerElement extends HTMLElementBase {
   }
 
   #handleClientEvent(event: RemoteTabClientEvent): void {
-    if (event.type === 'window-change') {
+    if (event.type === 'capabilities-change') {
+      if (!event.capabilities.includes('cursorFeedback')) this.#surface.style.cursor = 'default'
+    } else if (event.type === 'window-change') {
       const changed = this.#windows?.revision !== event.state.revision || this.#windows?.selectedTargetId !== event.state.selectedTargetId ||
         (!this.#windows?.selecting && event.state.selecting)
       this.#windows = event.state
       if (changed) {
+      this.#surface.style.cursor = 'default'
       // Core releases held input before switching. Local release messages would refer to a retired revision.
       this.#pressedKeys.clear()
       this.#pressedPointerButton = undefined
@@ -585,16 +588,21 @@ export class RemoteTabViewerElement extends HTMLElementBase {
       this.#syncWindows()
       this.#syncCapabilities()
       this.#dispatch('window-change', event)
+    } else if (event.type === 'cursor-change') {
+      if (this.#state === 'CONNECTED' && !this.#windowInputBlocked) this.#surface.style.cursor = event.cursor
+      this.#dispatch('cursor-change', event)
     } else if (event.type === 'playback-blocked') {
       this.#playbackBlocked = true
       this.#releasePressedInput()
       this.#setStatus(this.#state)
       this.#dispatch('playback-blocked', event)
     } else if (event.type === 'connection-state-change') {
+      if (event.state !== 'CONNECTED') this.#surface.style.cursor = 'default'
       this.#setStatus(event.state)
       this.#dispatch('connection-state-change', event)
       this.#handleFocusPolicy()
     } else if (event.type === 'viewport-change') {
+      this.#surface.style.cursor = 'default'
       this.#viewport = event.viewport
       this.#layoutVideo()
     } else if (event.type === 'navigation-result') {
@@ -603,6 +611,7 @@ export class RemoteTabViewerElement extends HTMLElementBase {
         if (!this.#addressEditing) this.#address.value = event.result.currentUrl
       }
     } else if (event.type === 'navigation-location-change') {
+      this.#surface.style.cursor = 'default'
       this.#navigationUrl = event.url
       if (!this.#addressEditing) this.#address.value = event.url
       this.#dispatch('navigation-location-change', event)

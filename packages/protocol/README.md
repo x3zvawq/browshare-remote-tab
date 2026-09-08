@@ -26,7 +26,7 @@ const bytes = encodeProtocolMessage(message)
 const decoded = decodeProtocolMessage(bytes)
 ```
 
-Protocol `1.4` rejects incompatible majors, malformed envelopes, unknown messages and payloads that
+Protocol `1.5` rejects incompatible majors, malformed envelopes, unknown messages and payloads that
 fail the owning TypeBox schema. Capabilities never grant behavior by themselves; Core still applies
 the Embedder's Session authorization at each side-effect boundary.
 

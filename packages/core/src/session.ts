@@ -256,6 +256,7 @@ export class RemoteTabCore {
       const cdpViewport = await attached.controller.setViewport(initialViewport)
       const viewport: Viewport = { ...cdpViewport, frameRate: initialViewport.frameRate }
       if (input.hooks.onTitleChanged !== undefined || input.capabilities.includes('windowSelection')) await attached.controller.observeTitle()
+      if (input.capabilities.includes('cursorFeedback')) await attached.controller.observeCursor()
       state.transition('READY')
 
       session = new RemoteTabSessionImplementation({
@@ -493,6 +494,7 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
   readonly #mediaLimits: SessionMediaLimits
   #quality: MediaQualitySettings
   #qualityConfiguration: QualityConfiguration | undefined
+  #pendingHover: { message: Extract<ProtocolMessage, { type: 'input.pointer' }>; chain: Promise<void> } | undefined
   #advancedQualityConfigured = false
   #advancedQualityState: QualityState | undefined
   readonly #qualityRequests = new Map<string, { clientRequestId?: string; viewerGeneration: number; cancelled?: true }>()
@@ -559,9 +561,28 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
         if (message === undefined) return
         // User decisions must unblock commands waiting for a prompt. All messages still pass
         // the same Session, generation, state and capability checks below.
-        if (message.type === 'notice.response') {
+        if (message.type === 'input.pointer' && message.payload.event === 'mouseMoved' && message.payload.buttons === 0) {
+          const pending = this.#pendingHover
+          if (pending?.chain === this.#controlChain && pending.message.sessionId === message.sessionId &&
+            pending.message.viewerGeneration === message.viewerGeneration && pending.message.windowRevision === message.windowRevision &&
+            pending.message.payload.viewportRevision === message.payload.viewportRevision && pending.message.payload.modifiers === message.payload.modifiers) {
+            if (message.sequence > pending.message.sequence) pending.message = message
+            return
+          }
+          // Keep only the latest passive hover behind an in-flight command. Button/drag/wheel/key
+          // events and any other queued operation remain ordering barriers.
+          const slot = { message, chain: Promise.resolve() }
+          slot.chain = this.#controlChain.then(() => {
+            if (this.#pendingHover === slot) this.#pendingHover = undefined
+            return this.#handleControl(slot.message)
+          }).catch((cause: unknown) => this.#handleControlError(cause))
+          this.#controlChain = slot.chain
+          this.#pendingHover = slot
+        } else if (message.type === 'notice.response') {
+          this.#pendingHover = undefined
           void this.#handleControl(message).catch((cause: unknown) => this.#handleControlError(cause))
         } else {
+          this.#pendingHover = undefined
           this.#controlChain = this.#controlChain
             .then(() => this.#handleControl(message))
             .catch((cause: unknown) => this.#handleControlError(cause))
@@ -593,6 +614,8 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
           // The media runtime may already be unavailable with the Chrome target.
         }
         void this.#fail(event.error)
+      } else if (event.type === 'cursor-changed') {
+        this.#publishCursor()
       } else if (event.type === 'location-changed') {
         this.#currentUrl = event.url
         this.#publishLocation()
@@ -746,6 +769,7 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
       this.#windowTabs.set(targetId, tab)
       this.#windowSubscriptions.set(targetId, this.#observeTab(tab))
       await tab.controller.observeTitle()
+      if (this.#capabilities.includes('cursorFeedback')) await tab.controller.observeCursor()
       await this.initializePageScript(tab)
       return tab
     } catch (cause) {
@@ -803,6 +827,7 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
       this.#publishLocation()
       this.#windowSwitching = false
       this.#publishWindows(requestId)
+      this.#publishCursor()
       this.#notifyInput()
       return true
     } catch (cause) {
@@ -1014,6 +1039,10 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
       this.#advancedQualityConfigured = false
       this.#advancedQualityState = undefined
       if (this.#state.state === 'CONNECTED' || this.#state.state === 'SUSPENDED') this.#extension.setMediaQuality(this.id, this.#quality)
+    }
+    if (normalized.includes('cursorFeedback') && !this.#capabilities.includes('cursorFeedback')) {
+      await this.#attached.controller.observeCursor()
+      if (this.#activeTab !== this.#attached) await this.#activeTab.controller.observeCursor()
     }
     this.#capabilities = normalized
     if (!normalized.includes('noticeRequests')) this.#noticeRequests.cancelAll('capability-revoked')
@@ -1445,6 +1474,7 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
         const applied = await this.#activeTab.controller.setViewport(bounded)
         this.#viewport = { ...applied, frameRate: bounded.frameRate }
         this.#send('viewport.ack', this.#viewport)
+        this.#publishCursor()
         break
       }
       case 'quality.configure':
@@ -1475,6 +1505,12 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
         break
       default:
         this.#sendError('PROTOCOL_MESSAGE_INVALID', `Unexpected Viewer message: ${message.type}`)
+    }
+  }
+
+  #publishCursor(): void {
+    if (this.#state.state === 'CONNECTED' && this.#noticeControlAvailable && !this.#windowSwitching && this.#viewerCapabilities.includes('cursorFeedback')) {
+      this.#send('cursor.changed', { cursor: this.#activeTab.controller.cursor, viewportRevision: this.#viewport.revision, windowRevision: this.#windowRevision })
     }
   }
 
@@ -2501,6 +2537,7 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
         this.#viewerCapabilities.includes(capability) && this.#capabilities.includes(capability) &&
         (!['noticeRequests', 'navigationConfirmation', 'navigationState'].includes(capability) || message.minor >= 1) &&
         (capability !== 'windowSelection' || message.minor >= 2) &&
+        (capability !== 'cursorFeedback' || message.minor >= 5) &&
         (capability !== 'advancedQuality' || (message.minor >= 4 && requested.includes('qualityControl') &&
           this.#viewerCapabilities.includes('qualityControl') && this.#capabilities.includes('qualityControl'))),
     )
@@ -2513,6 +2550,7 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
     else if (accepted.includes('qualityControl')) this.#send('quality.ack', this.#quality)
     this.#publishWindows()
     this.#publishLocation()
+    this.#publishCursor()
     const initialUrl = this.#deferredInitialUrl
     this.#deferredInitialUrl = undefined
     if (initialUrl !== undefined) {

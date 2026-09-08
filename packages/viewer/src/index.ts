@@ -26,6 +26,7 @@ export interface SessionCloseRequestDetail {
 }
 
 export interface RemoteTabViewerEventDetailMap {
+  'cursor-change': Extract<RemoteTabClientEvent, { type: 'cursor-change' }>
   'viewer-ready': ViewerReadyDetail
   'immersive-change': { immersive: boolean }
   'quality-configuration-change': Extract<RemoteTabClientEvent, { type: 'quality-configuration-change' }>

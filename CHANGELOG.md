@@ -5,6 +5,13 @@ version for its public npm packages, private service packages, example applicati
 version diagnostics. Wire compatibility is tracked separately by the protocol major and minor
 version in `deploy/compatibility.json`.
 
+## 0.1.24 - 2026-09-09
+
+Unreleased source candidate; no npm, container registry or signed release has been published.
+
+- Add negotiated cursor feedback for local Viewer pointer shapes, including editable fields, links, inherited CSS, open shadow roots and iframe targets. Protocol 1.5 and a coordinated Extension build are required.
+- Coalesce queued passive mouse moves without crossing reliable input or viewport/window operations; preserve dragging, scrolling and IME behavior.
+
 ## 0.1.23 - 2026-09-07
 
 Unpublished coordinated source candidate. This dated entry records the prepared changes; it does

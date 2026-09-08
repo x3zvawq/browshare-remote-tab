@@ -38,7 +38,7 @@ import type {
   RemoteTabUploadFile,
 } from './index.js'
 
-const CLIENT_VERSION = '0.1.23'
+const CLIENT_VERSION = '0.1.24'
 const APPLICATION_ERROR_CLOSE_CODE = 4_000
 const DEFAULT_ICE_RESTART_ATTEMPTS = 2
 const DEFAULT_ICE_DISCONNECTED_DELAY_MS = 2_000
@@ -161,6 +161,7 @@ class BrowserRemoteTabClient implements RemoteTabClient {
   #metricsTimer: ReturnType<typeof setTimeout> | undefined
   #metricsHistory: WebRtcMetricsHistory = new Map()
   #iceRestartAttempt = 0
+  #cursorViewportRevision: number | undefined
   #connectedOnce = false
   #stateBeforeRecovery: 'CONNECTED' | 'SUSPENDED' = 'CONNECTED'
   #requestedQuality: MediaQualityPreset | undefined
@@ -1661,6 +1662,13 @@ class BrowserRemoteTabClient implements RemoteTabClient {
       )
       return
     }
+    if (message.type === 'cursor.changed') {
+      if (!this.#capabilities.includes('cursorFeedback')) throw new RemoteTabError('PROTOCOL_MESSAGE_INVALID', 'Cursor feedback was not negotiated')
+      if (message.payload.viewportRevision !== this.#cursorViewportRevision ||
+        (this.#capabilities.includes('windowSelection') && (this.#windowState?.selecting || message.payload.windowRevision !== this.#windowState?.revision))) return
+      this.#emit({ type: 'cursor-change', cursor: message.payload.cursor })
+      return
+    }
     if (message.type === 'window.state') {
       if (!this.#capabilities.includes('windowSelection')) throw new RemoteTabError('PROTOCOL_MESSAGE_INVALID', 'Window state was not negotiated')
       if (this.#windowState !== undefined && message.payload.revision < this.#windowState.revision) return
@@ -1684,6 +1692,7 @@ class BrowserRemoteTabClient implements RemoteTabClient {
       const reconnected = this.#connectedOnce
       this.#capabilities = normalizeCapabilities(message.payload.capabilities)
       this.#emit({ type: 'capabilities-change', capabilities: this.#capabilities })
+      this.#cursorViewportRevision = message.payload.viewport.revision
       this.#emit({ type: 'viewport-change', viewport: message.payload.viewport })
       this.#setState('CONNECTED')
       this.#connectedOnce = true
@@ -1754,6 +1763,7 @@ class BrowserRemoteTabClient implements RemoteTabClient {
       return
     }
     if (message.type === 'viewport.ack') {
+      this.#cursorViewportRevision = message.payload.revision
       this.#emit({ type: 'viewport-change', viewport: message.payload as Viewport })
       return
     }

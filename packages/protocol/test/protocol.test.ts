@@ -30,8 +30,8 @@ describe('capabilities', () => {
 describe('protocol versions', () => {
   it('accepts different minor versions within the same major', () => {
     expect(assessProtocolVersion({ major: 1, minor: 0 }).relationship).toBe('remote-older')
-    expect(assessProtocolVersion({ major: 1, minor: 4 }).relationship).toBe('same')
-    expect(assessProtocolVersion({ major: 1, minor: 5 }).relationship).toBe('remote-newer')
+    expect(assessProtocolVersion({ major: 1, minor: 5 }).relationship).toBe('same')
+    expect(assessProtocolVersion({ major: 1, minor: 6 }).relationship).toBe('remote-newer')
     expect(assessProtocolVersion({ major: 2, minor: 0 }).compatible).toBe(false)
   })
 })
@@ -481,5 +481,15 @@ describe('window selection envelope', () => {
     // The optional field remains absent for Sessions without the negotiated capability.
     const legacy = createProtocolMessage('input.composition', { sessionId: 's', viewerGeneration: 1, sequence: 2 }, { event: 'commit', text: 'hello' })
     expect(decodeProtocolMessage(encodeProtocolMessage(legacy))).not.toHaveProperty('windowRevision')
+  })
+})
+
+// Cursor feedback contains presentation keywords only, never custom image URLs.
+describe('cursor feedback', () => {
+  it('round trips scoped keywords and rejects arbitrary CSS', () => {
+    const message = createProtocolMessage('cursor.changed', { sessionId: 'cursor', viewerGeneration: 1, sequence: 1 },
+      { cursor: 'text', viewportRevision: 1, windowRevision: 1 })
+    expect(decodeProtocolMessage(encodeProtocolMessage(message as ProtocolMessage))).toEqual(message)
+    expect(() => encodeProtocolMessage({ ...message, payload: { ...message.payload, cursor: 'url(https://example.test/cursor), pointer' } } as unknown as ProtocolMessage)).toThrow()
   })
 })

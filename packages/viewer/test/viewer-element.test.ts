@@ -41,6 +41,24 @@ describe('RemoteTabViewerElement file chooser', () => {
     clientFactory.mockReset()
   })
 
+  it('uses local cursor presentation and clears it on viewport/reconnect/revocation', async () => {
+    const viewer = mountViewer()
+    await tick()
+    emit({ type: 'connection-state-change', state: 'CONNECTED' })
+    const surface = required<HTMLElement>(viewer, '.surface')
+    emit({ type: 'cursor-change', cursor: 'text' })
+    expect(surface.style.cursor).toBe('text')
+    emit({ type: 'viewport-change', viewport: { width: 1280, height: 720, deviceScaleFactor: 1, frameRate: 30, revision: 2 } })
+    expect(surface.style.cursor).toBe('default')
+    emit({ type: 'cursor-change', cursor: 'pointer' })
+    expect(surface.style.cursor).toBe('pointer')
+    emit({ type: 'capabilities-change', capabilities: [] })
+    expect(surface.style.cursor).toBe('default')
+    emit({ type: 'cursor-change', cursor: 'wait' })
+    emit({ type: 'connection-state-change', state: 'RECONNECTING' })
+    expect(surface.style.cursor).toBe('default')
+  })
+
   it('selects local files, renders progress, and closes only after remote delivery', async () => {
     let resolveUpload!: () => void
     uploadFiles.mockReturnValueOnce(new Promise<void>((resolve) => {

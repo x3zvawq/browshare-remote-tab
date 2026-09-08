@@ -11,3 +11,5 @@ export * from './webrtc-diagnostics.js'
 export * from './webrtc-metrics.js'
 
 export * from './upload-policy.js'
+
+export * from './cursor.js'

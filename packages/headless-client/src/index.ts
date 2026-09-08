@@ -235,6 +235,7 @@ export interface RemoteTabDiagnosticEvent {
 }
 
 export type RemoteTabClientEvent =
+  | { type: 'cursor-change'; cursor: import('@browshare/remote-tab-protocol').CursorKind }
   | { type: 'window-change'; state: import('@browshare/remote-tab-protocol').WindowState }
   | { type: 'playback-blocked'; reason: 'user-activation-required' }
   | RemoteTabConnectionStateEvent

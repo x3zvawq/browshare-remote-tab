@@ -75,7 +75,7 @@ Limits are copied at creation, apply to every Viewer/window and survive reconnec
 [Session media limits](../../docs/design/03-embedding-api.md#session-media-limits-0119-candidate).
 
 Advanced quality requires both `qualityControl` and `advancedQuality` in the authorized Session,
-Viewer ticket and protocol-1.4 hello. Core configures the matching 0.1.23 Extension only after
+Viewer ticket and protocol-1.4 hello. Core configures the coordinated Extension only after
 negotiation, defaults a new advanced Session to auto, and retains the last successful configuration
 across Viewer replacement. It clamps custom bitrate/FPS and passes the immutable Session ceiling
 to the Publisher for every mode. Older Viewers keep the existing preset wire exchange. See the

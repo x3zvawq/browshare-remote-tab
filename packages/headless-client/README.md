@@ -63,3 +63,10 @@ when still authorized.
 the original wire exchange otherwise. Only preset states emit the legacy `quality-change` event.
 See [types, bounds and lifecycle](../../docs/design/03-embedding-api.md#advanced-quality-unreleased-0123-protocol-14).
 See [testing and compatibility](../../docs/design/08-testing.md) for verified browser and transport combinations.
+
+### Remote cursor
+
+When `cursorFeedback` is negotiated with a protocol-1.5 Core and matching Extension, `cursor-change`
+reports a standard CSS cursor keyword. The Viewer applies it locally; custom cursor images and page
+content are never copied. See the [cursor contract](../../docs/design/04-control-protocol.md#cursor-feedback)
+for frame, shadow-root, navigation and compatibility behavior.

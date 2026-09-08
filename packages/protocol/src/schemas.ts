@@ -1,3 +1,4 @@
+import { CursorKindSchema } from './cursor.js'
 import { UploadConstraintsSchema } from './upload-policy.js'
 import Type from 'typebox'
 
@@ -165,6 +166,7 @@ const WindowStateFrameSchema = Type.Object({
 }, { additionalProperties: false })
 
 export const ProtocolPayloadSchemas = {
+  'cursor.changed': Type.Object({ cursor: CursorKindSchema, viewportRevision: Type.Integer({ minimum: 1 }), windowRevision: Type.Integer({ minimum: 0 }) }, { additionalProperties: false }),
   'window.state': WindowStateFrameSchema,
   'session.capabilities': Type.Object({ capabilities: CapabilityListSchema }, { additionalProperties: false }),
   'window.close': Type.Object({ requestId: IdentifierSchema }, { additionalProperties: false }),

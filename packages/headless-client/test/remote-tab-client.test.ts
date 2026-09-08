@@ -20,6 +20,24 @@ describe('BrowserRemoteTabClient ICE recovery', () => {
     FakePeerConnection.instances.length = 0
   })
 
+  it('publishes negotiated cursor keywords only for the current viewport', async () => {
+    vi.stubGlobal('WebSocket', FakeWebSocket)
+    vi.stubGlobal('RTCPeerConnection', FakePeerConnection)
+    const client = createRemoteTabClient({ ticket: 'viewer-ticket', endpoint: 'wss://signal.example.test' })
+    const cursors: string[] = []
+    client.addEventListener(event => { if (event.type === 'cursor-change') cursors.push(event.cursor) })
+    try {
+      const { reliable } = await connectClient(client, ['cursorFeedback'])
+      const send = (viewportRevision: number) => reliable.receive(encodeProtocolMessage(createProtocolMessage('cursor.changed',
+        { sessionId: 'session-1', viewerGeneration: 1, sequence: viewportRevision },
+        { cursor: 'text', viewportRevision, windowRevision: 1 })))
+      send(2)
+      send(1)
+      await Promise.resolve()
+      expect(cursors).toEqual(['text'])
+    } finally { await client.disconnect() }
+  })
+
   it('keeps pending playback when audio and video arrive in the same MediaStream', async () => {
     vi.stubGlobal('WebSocket', FakeWebSocket)
     vi.stubGlobal('RTCPeerConnection', FakePeerConnection)

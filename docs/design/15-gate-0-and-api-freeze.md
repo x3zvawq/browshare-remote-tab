@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > This document records the source-level baseline for the first stable Remote Tab API and wire
 > protocol. That first freeze used coordinated package and runtime versions `0.1.14`; the current
-> unreleased candidate is `0.1.23` with protocol `1.4`, as recorded in
+> unreleased candidate is `0.1.24` with protocol `1.5`, as recorded in
 > [the compatibility manifest](../../deploy/compatibility.json).
 > The npm, GHCR, official CRX and GitHub assets remain unpublished until the tag-gated release
 > workflow succeeds. Changing a frozen surface requires an explicit design update and the change
@@ -53,7 +53,7 @@ the published compatibility table is unsupported until it completes the same Gat
 ## Evolving the protocol
 
 At the first freeze, `PROTOCOL_VERSION` was `{ major: 1, minor: 0 }`. The current candidate uses
-`{ major: 1, minor: 4 }`; the envelope carries both numbers. The baseline tables below retain the
+`{ major: 1, minor: 5 }`; the envelope carries both numbers. The baseline tables below retain the
 original freeze's scope rather than claiming a completed release Gate for the newer candidate.
 
 - Increment the major version for a removed or renamed message, changed required field, changed
@@ -383,3 +383,18 @@ See the [embedding API](03-embedding-api.md#advanced-quality-unreleased-0123-pro
 0.1.23 sender/UI/pressure/recovery acceptance and the complete Direct/TURN release Gate remain
 pending. Earlier Chrome results do not establish this candidate's advanced-quality behavior or
 public availability.
+
+### Cursor feedback (unreleased 0.1.24)
+
+Protocol 1.5 adds the optional `cursorFeedback` capability and Core-to-Viewer `cursor.changed`
+message. Its payload carries only a `CURSOR_KINDS` keyword, acknowledged `viewportRevision` and
+`windowRevision`; no custom cursor image, URL or page text is transported. Core only accepts this
+capability in a minor-5-or-newer hello, and the Extension must be the coordinated 0.1.24 build.
+Older peers continue without cursor feedback. Headless Client and Viewer expose `cursor-change`;
+the Viewer applies the keyword as a local CSS cursor. These are presentation hints, never input
+authorization or a substitute for the captured page. The owning behavior and limits are documented
+in [the control protocol](04-control-protocol.md#cursor-feedback).
+
+Core also coalesces consecutive, not-yet-dispatched passive mouse moves with the same Session,
+generation, window, viewport and modifiers. Each other control operation is an ordering barrier;
+button-down dragging, wheel deltas, clicks, keys and composition commits are not discarded.

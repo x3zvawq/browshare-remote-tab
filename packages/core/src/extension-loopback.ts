@@ -411,7 +411,7 @@ export class ExtensionLoopbackServer implements TabIdentityResolver {
     const socket = this.#requireMediaSocket(request.sessionId)
     // Older Extensions reject the new Viewer response in their strict channel allowlist.
     if ((request.captureFrameRateLimit !== undefined || request.capabilities.some((capability) =>
-        ['noticeRequests', 'navigationState', 'windowSelection', 'advancedQuality'].includes(capability))) &&
+        ['noticeRequests', 'navigationState', 'windowSelection', 'advancedQuality', 'cursorFeedback'].includes(capability))) &&
         this.#versionForSocket(socket) !== REMOTE_TAB_CORE_VERSION) {
       throw new RemoteTabError('CAPABILITY_UNAVAILABLE',
         `Negotiated capabilities and capture source limits require the coordinated Extension ${REMOTE_TAB_CORE_VERSION}`)
