@@ -84,6 +84,11 @@ curl --fail-with-body \
 API caller; `deny-all` blocks Viewer navigation actions. Application-specific URL policy remains an
 Embedder responsibility and should use Core directly until Standalone gains an external policy hook.
 
+Creation, Viewer Ticket requests and capability updates accept any unique subset of the protocol's
+known `CAPABILITIES`, including the complete supported list. The maximum list length follows that
+registry; unknown names and duplicates are rejected. This validation does not grant a Ticket
+capability outside the Session's allow-list.
+
 `childTargetPolicy` defaults to `close-and-local-open`: ordinary remote `window.open()` calls become
 Viewer-local confirmations after navigation authorization. `retain` is intended for a trusted
 maintenance Session and preserves remote child targets. `localOpenRequestTimeoutMs` controls how

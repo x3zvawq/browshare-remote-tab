@@ -1,4 +1,5 @@
 import {
+  CAPABILITIES,
   CapabilitySchema,
   ProtocolPayloadSchemas,
   type ProtocolPayload,
@@ -13,7 +14,7 @@ const IdentifierSchema = Type.String({
 })
 
 const CapabilitiesSchema = Type.Array(CapabilitySchema, {
-  maxItems: 12,
+  maxItems: CAPABILITIES.length,
   uniqueItems: true,
 })
 

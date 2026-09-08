@@ -9,7 +9,7 @@ import {
   type RemoteTabSession,
   type ViewerTicketRequest,
 } from '@browshare/remote-tab-core'
-import { HmacViewerTicketCodec, type Capability, type RemoteTabState } from '@browshare/remote-tab-protocol'
+import { CAPABILITIES, HmacViewerTicketCodec, type Capability, type RemoteTabState } from '@browshare/remote-tab-protocol'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WebSocketServer } from 'ws'
 
@@ -148,6 +148,58 @@ describe('LocalSessionStorage', () => {
 })
 
 describe('Standalone Embedder API', () => {
+  it('accepts every supported capability across creation, tickets and updates while rejecting invalid lists', async () => {
+    const core = new FakeCore()
+    const configuration = await testConfiguration()
+    const daemon = new StandaloneDaemon(configuration, { core })
+    daemons.push(daemon)
+    const address = await daemon.start()
+    const baseUrl = `http://${address.host}:${address.port}`
+    const input = {
+      sessionId: 'all-capabilities',
+      tab: { mode: 'create' },
+      capabilities: [...CAPABILITIES],
+      signaling: {
+        gatewayId: 'gateway-1',
+        coreEndpoint: 'ws://127.0.0.1:8081',
+        viewerEndpoint: 'wss://signal.example.test/remote-tab',
+        bindingToken: 'binding-token',
+      },
+      navigationPolicy: 'allow-all',
+    }
+    const created = await api(baseUrl, configuration, '/v1/sessions', {
+      method: 'POST', body: input,
+    })
+    expect(created.status).toBe(201)
+    expect(core.inputs[0]?.capabilities).toEqual(CAPABILITIES)
+    const sessionPath = '/v1/sessions/all-capabilities'
+    const ticket = await api(baseUrl, configuration, `${sessionPath}/viewer-tickets`, {
+      method: 'POST', body: { capabilities: [...CAPABILITIES], expiresInSeconds: 60 },
+    })
+    expect(ticket.status).toBe(201)
+    await expect(ticket.json()).resolves.toMatchObject({ viewerGeneration: 1 })
+    const updated = await api(baseUrl, configuration, `${sessionPath}/capabilities`, {
+      method: 'PUT', body: { capabilities: [...CAPABILITIES] },
+    })
+    expect(updated.status).toBe(200)
+    await expect(updated.json()).resolves.toMatchObject({ capabilities: [...CAPABILITIES] })
+
+    for (const capabilities of [['navigation', 'unknown-capability'], ['navigation', 'navigation']]) {
+      for (const [path, method, body] of [
+        ['/v1/sessions', 'POST', { ...input, sessionId: 'invalid-capabilities', capabilities }],
+        [`${sessionPath}/viewer-tickets`, 'POST', { capabilities, expiresInSeconds: 60 }],
+        [`${sessionPath}/capabilities`, 'PUT', { capabilities }],
+      ] as const) {
+        const rejected = await api(baseUrl, configuration, path, { method, body })
+        expect(rejected.status).toBe(400)
+        await expect(rejected.json()).resolves.toMatchObject({ error: { code: 'API_INVALID_REQUEST' } })
+      }
+    }
+    expect(core.inputs).toHaveLength(1)
+    const current = await api(baseUrl, configuration, sessionPath, { method: 'GET' })
+    await expect(current.json()).resolves.toMatchObject({ viewerGeneration: 1, capabilities: [...CAPABILITIES] })
+  })
+
   it('authenticates, owns generation allocation, and manages a complete Session lifecycle', async () => {
     const fakeCore = new FakeCore()
     const cdp = await createTargetListCdpFixture([

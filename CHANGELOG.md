@@ -51,6 +51,10 @@ not claim npm, GHCR, official Extension signing or GitHub Release publication.
 
 ### Fixed
 
+- Standalone creation, Viewer Ticket and capability-update requests accept the full supported
+  capability set. The obsolete twelve-item limit rejected valid combinations containing newer
+  quality, Notice and window capabilities; unknown and duplicate names remain invalid.
+
 - Standalone diagnostic output retains fixed events and machine fields while omitting free-form
   Page Script error messages that can contain page data; the public Core debug hook is unchanged.
 
