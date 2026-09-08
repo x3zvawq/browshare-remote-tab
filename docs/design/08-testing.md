@@ -1075,3 +1075,74 @@ client to the publicly retrievable CI candidate; it does not claim registry publ
 retained in ignored `tmp/hosted-ci-qa/current-968a660*` and
 `tmp/release-gate-0123/client-media-fix/final-gate-manifest.json`. Gate containers, temporary
 volumes, target service, local controllers and owned SSH forwards were removed after acceptance.
+
+## Maple fonts and complete Chrome Node image (2026-09-08)
+
+Clean public source `a2ae55c0c46aa6e8aabd5c4e98cc8aed055698b3` was built using the complete
+`chrome-node` Docker target under a restrictive checkout umask. The real production entrypoint
+installed the existing signed QA Extension 0.1.23, completed its first-install restart, and created
+two READY Sessions through the Standalone API before and after restarting the same owned Profile.
+Chrome platform-font inspection confirmed Maple Mono CN for Latin and Chinese in standard,
+serif, sans-serif and fixed families, including bold and italic; an explicit website font remained
+Liberation Serif. The Profile restart retained site localStorage and unrelated Chrome preferences.
+The image includes the upstream OFL text with readable permissions.
+
+This run found and fixed a real nonroot startup failure: `pnpm deploy` preserved a root-owned
+0600 package manifest, preventing UID 1000 from resolving package exports. Both runtime application
+COPY instructions now assign ownership to `node`. The clean full rebuild and actual Signaling and
+Standalone startup passed. The earlier failing image and temporary HTTP fixture query-routing
+failure remain recorded separately; they are not reported as successful runs.
+
+Evidence lives in ignored `tmp/maple-font-qa/chrome-node-image/attempt-a2ae55c/` in the paired
+BrowShare workspace. Both Sessions closed through the public API, tracked Session count reached
+zero, and all owned containers, target processes and builders were stopped or removed. This proves
+the complete image, Extension binding, real font rendering and persistent Profile behavior; it
+does not establish new signed Extension provenance or public image distribution.
+
+## Idle signaling through a reverse proxy (2026-09-08)
+
+An actual BrowShare Viewer exposed periodic reconnects at roughly 75.8 seconds: the Viewer element
+remained mounted, but Backend Viewer generations increased and public connection events reported
+`ICE_FAILED`. An isolated real Nginx with a 75-second WebSocket read timeout reproduced the old
+SignalingGateway's idle disconnection. The final baseline Core closed at 74.998 seconds with 1006;
+the surviving Viewer received `signal.peer-left`, then closed on the fixture's existing pairing
+deadline. Media/input traffic does not keep this separate signaling connection active.
+
+The corrected Gateway sends native ping frames every 25 seconds. In the same 110-second observation,
+both Core and Viewer sockets remained open and each received four pings. A client configured not
+to answer pong was terminated at 48.062 seconds and its peer received the existing departure event.
+Gateway close left zero heartbeat timers. Signaling typecheck/build and six existing tests passed.
+The schema and peer-departure lifecycle did not change.
+
+Evidence is retained in ignored `tmp/signaling-heartbeat-qa/`. An initial candidate incorrectly
+treated the `ws` successful callback value `null` as an error; the actual experiment found it and
+the check was corrected before deployment. The final raw result also retains a failed temporary
+assertion that expected both baseline sockets to close at 75 seconds. Its separate evaluated result
+records why peer-departure traffic resets the surviving socket's timer and verifies the actual
+failure and correction without overwriting raw evidence. This isolated experiment used authorization
+fixtures and real Node WebSockets/Nginx; it is not Chrome or WebRTC proof. All owned test containers
+and the isolated network were removed.
+
+## Viewer immersive controls in BrowShare (2026-09-08)
+
+The paired deployment used Viewer source `c7d0033` and the corrected SignalingGateway source
+`5923c76596213e7a83ab92cca2f382ac64be30cb`. Its actual maintenance Session verified 24px SVG
+icons with 44px button targets, the public `immersive-change` event, hidden embedder header and
+toolbar/window controls, a floating keyboard-operable exit, and retained child-window selection.
+The remote website itself is unchanged. Actual normal and immersive input reached the target page;
+desktop, 390px portrait and 844px landscape layouts fit the acknowledged remote viewport. Encoded
+frame dimensions were not mistaken for viewport dimensions after capture resizing.
+
+After the Gateway update, the same Viewer and video elements and media track remained active over
+247.625 seconds, with decoded frames increasing from 415 to 7469 and no error/reconnecting events.
+The observation included immersion enter/exit and mobile resizing. Backend administration API
+observations 238.509 seconds apart retained Viewer generation 1 and identical connectedAt; further
+input reached the real page afterward. This closes the idle-proxy regression exposed during UX
+acceptance without claiming a new four-browser or TURN matrix. The current signaling commit also
+passed [hosted CI](https://github.com/x3zvawq/browshare-remote-tab/actions/runs/34246166211).
+
+Evidence is in the paired BrowShare workspace's ignored `tmp/profile-viewer-ux/`. Target services,
+owned maintenance Sessions/Profiles, local Chrome, isolated proxies and builders were cleaned up;
+the six business services and original user Profile remain available. Existing Viewer tests,
+typechecks/builds and scoped UI accessibility checks passed within the limits documented by the
+paired acceptance report. External npm, GHCR and signed Extension publications remain separate.

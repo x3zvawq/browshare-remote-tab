@@ -163,5 +163,5 @@
 
 ## 使用体验优化
 
-- [ ] Viewer SVG 工具栏、沉浸退出与媒体输入真实验证
-- [ ] Chrome Node Maple Mono CN 默认字体与中文渲染镜像验证
+- [x] Viewer SVG 工具栏、沉浸退出与媒体输入真实验证
+- [x] Chrome Node Maple Mono CN 默认字体与中文渲染镜像验证
