@@ -1,8 +1,35 @@
 # First stable release candidate record
 
 > [!IMPORTANT]
-> This record accepts the local `0.1.14` candidate for external publication. It does not claim that
-> a GitHub tag, npm package, GHCR image or official fixed-ID Extension has been published.
+> The current coordinated candidate is `0.1.23` / protocol `1.4`. Source publication, hosted CI
+> and the current real-browser matrix are complete; npm, GHCR and official fixed-ID Extension
+> publication remain pending. The `0.1.14` and `0.1.15` sections preserve historical evidence.
+
+## Current public candidate — 2026-09-08
+
+Source commit `968a66092edff2de72f36055ec97a08c4b473f47` is publicly available from
+[`x3zvawq/browshare-remote-tab`](https://github.com/x3zvawq/browshare-remote-tab/tree/968a66092edff2de72f36055ec97a08c4b473f47).
+[Its hosted CI](https://github.com/x3zvawq/browshare-remote-tab/actions/runs/34225368970)
+passed source/package/Compose checks, all three container targets, GitHub provenance and the
+aggregate gate. The received candidate passed its 19 checksum/subject checks; the received
+Client tarball passed GitHub attestation verification for that exact source and workflow.
+
+The corrected Client, unchanged Viewer and Protocol entries in the received packages are
+byte-identical to those used in the current four-Session Direct, forced TURN/UDP, TURN/TCP,
+TURN/TLS and Chrome/Edge/Safari/Firefox acceptance. Runtime Chrome remains
+`152.0.7977.75`, managed signed Extension `0.1.23` and protocol `1.4`. Exact browser versions,
+runtime source, Safari transport inference and original failures are retained in
+[the current compatibility result](08-testing.md#final-corrected-client-compatibility-result-2026-09-08).
+All Gate Sessions, owned targets, local browsers and temporary runtime services were cleaned up.
+
+Source publication is complete. The three remaining external-publication items require the
+confirmed npm scope and package trusted publishers, an official persistent Extension signing
+identity, the reviewed version-tag workflow and receiver verification of the published bytes.
+QA signing identities are not official publisher identities. The release workflow has not been
+triggered, and no npm, GHCR or official CRX release is claimed here. Follow
+[First stable release and installation](22-first-stable-release.md) for that remaining sequence.
+
+## Historical 0.1.14 local candidate
 
 On 2026-09-04, the coordinated Remote Tab source, package, service-image and downloadable-asset
 paths completed their final local and isolated-Linux rehearsal. The accepted compatibility tuple is
@@ -120,10 +147,11 @@ checksum/provenance subjects and a 22-asset checksum-verified release directory.
 still the existing local test key; public registry, official signing and source publication remain
 pending. Runtime evidence is under BrowShare's ignored `tmp/profile-runtime-qa/`.
 
-## 0.1.23 working-tree release preparation — 2026-09-08
+## Historical 0.1.23 working-tree release preparation — 2026-09-08
 
-This is an unpublished working-tree candidate: no Git commit, remote, release tag or hosted run
-was created. The 0.1.14 and 0.1.15 records above retain their historical versions and proof scope.
+At this preparation stage the candidate was an unpublished working tree: no Git commit, remote,
+release tag or hosted run had been created. The current public candidate section above supersedes
+that source-publication status; the following results retain their original proof scope.
 Current versions are coordinated at 0.1.23 with protocol 1.4 and Google Chrome Stable
 152.0.7977.75. Current changed-path Chrome results are recorded in [Testing](08-testing.md).
 
@@ -164,7 +192,7 @@ The real `--repository x3zvawq/browshare-remote-tab` gate now passes. All six fr
 archives were inspected and contain the exact repository URL, package directory and coordinated
 version. These are local archives; no npm publication or Git commit was performed.
 
-The four external publication checkboxes remain unchecked. Their remaining boundary is a reviewed
+At that stage four external publication checkboxes remained unchecked. Their remaining boundary was a reviewed
 source commit/tag and trusted publishers, successful hosted gates,
 GHCR digests/attestations, official signing identity, immutable external release assets and clean-node
 installation of those published bytes. No local artifact assembly substitutes for those results.

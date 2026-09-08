@@ -1063,3 +1063,15 @@ remain in evidence. All owned local browser processes and test tabs were closed 
 
 This completes the current 0.1.23 candidate Direct/TURN and four-desktop matrix. Official npm,
 GHCR and signed Extension distribution remain separate unchecked external-publication items.
+
+The subsequently published source commit `968a66092edff2de72f36055ec97a08c4b473f47` passed
+[its hosted CI](https://github.com/x3zvawq/browshare-remote-tab/actions/runs/34225368970),
+including the three container targets and GitHub build provenance. The received artifact bundle
+passed the formal verifier for all 19 checksums and provenance subjects. Its Client, Protocol and
+Viewer `dist/index.mjs` files were byte-identical to the entries used in the accepted matrix above.
+The received Client tarball also passed GitHub attestation verification constrained to this
+repository, CI workflow, full source commit, main ref and hosted runner. This connects the tested
+client to the publicly retrievable CI candidate; it does not claim registry publication. Evidence is
+retained in ignored `tmp/hosted-ci-qa/current-968a660*` and
+`tmp/release-gate-0123/client-media-fix/final-gate-manifest.json`. Gate containers, temporary
+volumes, target service, local controllers and owned SSH forwards were removed after acceptance.
