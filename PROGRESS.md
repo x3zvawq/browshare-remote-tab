@@ -167,3 +167,5 @@
 - [x] Chrome Node Maple Mono CN 默认字体与中文渲染镜像验证
 - [x] 可协商的指针反馈、跨域 iframe/遮罩命中及真实 BrowShare Viewer 链路验证
 - [x] 无按键 hover 合并、可靠输入顺序与静止/输入/滚动媒体对比验证
+
+- [ ] 原生拖选、Backspace/Enter、剪贴板快捷键及 fileDrop 的完整 Viewer 真实链路验收

@@ -41,6 +41,42 @@ describe('RemoteTabViewerElement file chooser', () => {
     clientFactory.mockReset()
   })
 
+  it('preserves drag buttons and sends browser virtual keys for native editing', async () => {
+    const viewer = mountViewer()
+    await tick()
+    emit({ type: 'connection-state-change', state: 'CONNECTED' })
+    emit({ type: 'viewport-change', viewport: { width: 800, height: 600, deviceScaleFactor: 1, frameRate: 30, revision: 1 } })
+    const video = required<HTMLVideoElement>(viewer, 'video')
+    vi.spyOn(video, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, width: 800, height: 600, bottom: 600, right: 800, toJSON() {} })
+    const surface = required<HTMLElement>(viewer, '.surface')
+    surface.setPointerCapture = vi.fn()
+    surface.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'mouse', pointerId: 1, clientX: 20, clientY: 20, button: 0, buttons: 1, cancelable: true }))
+    surface.dispatchEvent(new PointerEvent('pointermove', { pointerType: 'mouse', pointerId: 1, clientX: 50, clientY: 20, button: -1, buttons: 1, cancelable: true }))
+    expect(client.sendPointer).toHaveBeenLastCalledWith(expect.objectContaining({ event: 'mouseMoved', button: 'left', buttons: 1 }))
+    const ime = required<HTMLTextAreaElement>(viewer, '.ime-proxy')
+    ime.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', code: 'Backspace', keyCode: 8, cancelable: true }))
+    expect(client.sendKey).toHaveBeenLastCalledWith(expect.objectContaining({ key: 'Backspace', windowsVirtualKeyCode: 8 }))
+    ime.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, cancelable: true }))
+    expect(client.sendKey).toHaveBeenLastCalledWith(expect.objectContaining({ key: 'Enter', windowsVirtualKeyCode: 13, text: '\r' }))
+    ime.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', code: 'KeyA', keyCode: 65, metaKey: true, cancelable: true }))
+    expect(client.sendKey).toHaveBeenLastCalledWith(expect.objectContaining({ modifiers: 2, windowsVirtualKeyCode: 65 }))
+    const before = vi.mocked(client.sendKey).mock.calls.length
+    ime.dispatchEvent(new KeyboardEvent('keydown', { key: 'Process', isComposing: true, keyCode: 229 }))
+    expect(vi.mocked(client.sendKey).mock.calls).toHaveLength(before)
+  })
+
+  it('contains native file drops even when the Session cannot accept them', async () => {
+    const viewer = mountViewer()
+    await tick()
+    const transfer = new DataTransfer()
+    transfer.items.add(new File(['drop'], 'drop.txt'))
+    Object.defineProperty(transfer, 'types', { value: ['Files'] })
+    const drop = new DragEvent('drop', { dataTransfer: transfer, bubbles: true, composed: true, cancelable: true })
+    Object.defineProperty(drop, 'dataTransfer', { value: transfer })
+    required<HTMLElement>(viewer, '.surface').dispatchEvent(drop)
+    expect(drop.defaultPrevented).toBe(true)
+  })
+
   it('uses local cursor presentation and clears it on viewport/reconnect/revocation', async () => {
     const viewer = mountViewer()
     await tick()

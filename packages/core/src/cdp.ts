@@ -708,6 +708,7 @@ export interface CdpPointerInput {
 export type CdpKeyEventType = 'keyDown' | 'keyUp' | 'rawKeyDown' | 'char'
 
 export interface CdpKeyInput {
+  commands?: readonly string[]
   type: CdpKeyEventType
   key: string
   code: string
@@ -846,6 +847,7 @@ export type CdpTabEventListener = (event: CdpTabEvent) => void
 
 export interface CdpTabController {
   readonly targetId: string
+  readonly documentRevision: number
   readonly viewport: CdpViewport | undefined
   onEvent(listener: CdpTabEventListener): () => void
   readonly title: string | undefined
@@ -859,7 +861,7 @@ export interface CdpTabController {
   dispatchKey(input: CdpKeyInput): Promise<void>
   releaseInput(): Promise<void>
   insertText(text: string): Promise<void>
-  readClipboard(): Promise<readonly CdpClipboardItem[]>
+  readClipboard(selection?: 'copy' | 'cut'): Promise<readonly CdpClipboardItem[]>
   writeClipboardAndPaste(items: readonly CdpClipboardItem[]): Promise<void>
   installPageScript(input: {
     sessionId: string
@@ -868,6 +870,7 @@ export interface CdpTabController {
     requestNotice?: PageScriptNoticeHandler
   }): Promise<void>
   dispatchPageScriptDetached(): Promise<void>
+  dropFiles(point: { x: number; y: number; viewportRevision: number }, files: readonly string[], documentRevision: number): Promise<void>
   setFileInputFiles(backendNodeId: number, files: readonly string[]): Promise<void>
   enableLocalOpenInterception(): Promise<void>
   ownsTarget(targetId: string): boolean
@@ -901,6 +904,8 @@ class CdpTabControllerImplementation implements CdpTabController {
   readonly #unsubscribe: () => void
   readonly #unsubscribeConnectionClose: () => void
   #releaseChildInterception: (() => void) | undefined
+  #documentRevision = 0
+  public get documentRevision(): number { return this.#documentRevision }
   #viewport: CdpViewport | undefined
   readonly #mainWorldContexts = new Map<number, { uniqueId: string; frameId: string }>()
   #pageScriptNotices: PageScriptNotices | undefined
@@ -1068,6 +1073,7 @@ class CdpTabControllerImplementation implements CdpTabController {
       } else if (event.method === 'Page.frameNavigated') {
         const frame = event.params.frame
         if (isRecord(frame) && frame.parentId === undefined && typeof frame.url === 'string') {
+          this.#documentRevision += 1
           this.#pageScriptNotices?.cancelAll()
           if (typeof frame.id === 'string') this.#mainFrameId = frame.id
           this.#currentUrl = frame.url
@@ -1274,6 +1280,7 @@ class CdpTabControllerImplementation implements CdpTabController {
         : { nativeVirtualKeyCode: input.nativeVirtualKeyCode }),
       ...(input.autoRepeat === undefined ? {} : { autoRepeat: input.autoRepeat }),
       ...(input.isKeypad === undefined ? {} : { isKeypad: input.isKeypad }),
+      ...(input.commands === undefined ? {} : { commands: [...input.commands] }),
     })
     if (input.type === 'keyDown' || input.type === 'rawKeyDown') this.#pressedKeys.set(input.code, { ...input })
     if (input.type === 'keyUp') this.#pressedKeys.delete(input.code)
@@ -1298,8 +1305,14 @@ class CdpTabControllerImplementation implements CdpTabController {
     await this.#call('Input.insertText', { text })
   }
 
-  public async readClipboard(): Promise<readonly CdpClipboardItem[]> {
+  public async readClipboard(selection?: 'copy' | 'cut'): Promise<readonly CdpClipboardItem[]> {
     return this.#withClipboardPermission('clipboard-read', async () => {
+      if (selection !== undefined) {
+        // The command and clipboard read share the same exclusive Core operation.
+        const key = selection === 'cut' ? 'x' : 'c'
+        await this.dispatchKey({ type: 'rawKeyDown', key, code: `Key${key.toUpperCase()}`, modifiers: 2, windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0), commands: [selection] })
+        await this.dispatchKey({ type: 'keyUp', key, code: `Key${key.toUpperCase()}`, modifiers: 2, windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0) })
+      }
       const result = await this.#call<{
         result?: { value?: unknown }
         exceptionDetails?: unknown
@@ -1457,6 +1470,20 @@ class CdpTabControllerImplementation implements CdpTabController {
       awaitPromise: false,
       returnByValue: true,
     })
+  }
+
+  public async dropFiles(point: { x: number; y: number; viewportRevision: number }, files: readonly string[], documentRevision: number): Promise<void> {
+    const assertTarget = (): void => {
+      if (documentRevision !== this.#documentRevision) throw new RemoteTabError('PROTOCOL_MESSAGE_INVALID', 'The drop document changed during upload')
+      if (this.#viewport === undefined || point.viewportRevision !== this.#viewport.revision || !Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.y < 0 || point.x > this.#viewport.width || point.y > this.#viewport.height) throw new RemoteTabError('PROTOCOL_MESSAGE_INVALID', 'Drop coordinates must match the current viewport')
+    }
+    if (files.length === 0 || files.some(file => !isAbsolute(file))) throw new RemoteTabError('PROTOCOL_MESSAGE_INVALID', 'Drop requires stored files')
+    const data = { items: [], files: [...files], dragOperationsMask: 1 }
+    for (const type of ['dragEnter', 'dragOver', 'drop']) {
+      // A drag handler can navigate or resize the page before the next native event.
+      assertTarget()
+      await this.#call('Input.dispatchDragEvent', { type, x: point.x, y: point.y, data })
+    }
   }
 
   public async setFileInputFiles(backendNodeId: number, files: readonly string[]): Promise<void> {

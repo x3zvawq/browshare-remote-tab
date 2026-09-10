@@ -291,12 +291,13 @@ export interface RemoteTabClient {
   sendComposition(input: ProtocolPayload<'input.composition'>): void
   respondToNotice(requestId: string, buttonId: string | null): Promise<void>
   respondToLocalOpen(requestId: string, approved: boolean): Promise<void>
+  dropFiles(point: { x: number; y: number; viewportRevision: number }, files: readonly RemoteTabUploadFile[]): Promise<void>
   uploadFiles(requestId: string, files: readonly RemoteTabUploadFile[]): Promise<void>
   cancelUpload(requestId: string): Promise<void>
   acceptDownload(transferId: string): Promise<RemoteTabDownloadedFile>
   cancelDownload(transferId: string): Promise<void>
   writeRemoteClipboard(items: readonly RemoteTabClipboardWriteItem[]): Promise<void>
-  readRemoteClipboard(): Promise<readonly RemoteTabClipboardItem[]>
+  readRemoteClipboard(selection?: 'copy' | 'cut'): Promise<readonly RemoteTabClipboardItem[]>
   addEventListener(listener: RemoteTabClientEventListener): () => void
 }
 

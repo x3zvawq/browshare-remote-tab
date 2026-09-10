@@ -52,14 +52,15 @@ curl --version
 
 The source build requires Node.js `24.11.0` or newer, Corepack and the pnpm version declared in
 `package.json`. The Docker daemon needs outbound HTTPS access to npm registries, the pinned Node
-base image, Google Chrome's Debian package, the pinned Maple Mono CN release and the nginx image.
+base image, Google Chrome's Debian package, Debian font packages and the nginx image.
 
-The `chrome-node` image includes Maple Mono CN v7.9 with its OFL license. Before each Chrome start,
-the launcher sets its standard, serif, sans-serif and fixed defaults for common and Chinese scripts
-to this font, preserving other Profile preferences and site data. Existing Profiles pick up the
+The `chrome-node` image includes Debian's `fonts-noto-cjk` package with its OFL license. Before each
+Chrome start, the launcher sets standard and sans-serif defaults to proportional Noto Sans CJK SC,
+serif to Noto Serif CJK SC, and fixed to Noto Sans Mono CJK SC for common and Chinese scripts,
+preserving other Profile preferences and site data. Existing Profiles pick up the
 defaults on their next start; running Chrome preferences are not edited. Explicit website fonts
-and `@font-face` still take precedence. See [third-party notices](../THIRD_PARTY_NOTICES.md#maple-mono-cn)
-for the pinned asset, license and glyph coverage boundary.
+and `@font-face` still take precedence. See [third-party notices](../THIRD_PARTY_NOTICES.md#noto-cjk)
+for the installed package, license and glyph coverage boundary.
 
 Application files in the runtime images belong to the non-root `node` user. The Dockerfile
 preserves that ownership even when a restrictive source checkout gives package metadata mode `0600`.

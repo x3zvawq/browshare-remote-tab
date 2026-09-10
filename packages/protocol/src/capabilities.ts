@@ -2,6 +2,8 @@ import Type from 'typebox'
 
 export const CAPABILITIES = [
   'cursorFeedback',
+  'fileDrop',
+  'clipboardSelection',
   'navigation',
   'backForward',
   'reload',

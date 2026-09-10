@@ -285,3 +285,15 @@ browser error.
 Phase 4 is complete. BrowShare, not Remote Tab, stores administrator JavaScript, versions,
 applicability and publication policy. Durable daemon crash reconciliation, the full Gate 0 rerun and
 release hardening remain later phases.
+
+## Native file drop and clipboard shortcuts
+
+Coordinated 0.1.25 / protocol 1.6 adds the optional `fileDrop` and `clipboardSelection` capabilities.
+File drops reuse the upload offer, storage quotas, backpressure, cancellation and Session cleanup.
+The final delivery is native Chrome dragEnter/dragOver/drop at a revision-checked viewport point;
+it does not simulate a file-input change. No local filesystem path is accepted from a Viewer.
+A window change cancels transfer state and a document reload or viewport change rejects late delivery.
+
+Copy/cut shortcuts request a selection action in the same exclusive Core clipboard operation as
+reading. Permission is checked before editing; local clipboard permission denial retains the
+existing manual-copy fallback. The toolbar's ordinary read still reads the existing remote clipboard.

@@ -41,11 +41,16 @@ async function configure() {
     if (!object(fonts[key])) throw new Error('Invalid Chrome font preferences')
     fonts = fonts[key]
   }
-  for (const family of ['standard', 'serif', 'sansserif', 'fixed']) {
+  for (const [family, name] of Object.entries({
+    standard: 'Noto Sans CJK SC',
+    serif: 'Noto Serif CJK SC',
+    sansserif: 'Noto Sans CJK SC',
+    fixed: 'Noto Sans Mono CJK SC',
+  })) {
     if (fonts[family] === undefined) fonts[family] = {}
     if (!object(fonts[family])) throw new Error('Invalid Chrome font family preferences')
     // Zyyy is the common-script fallback; Han defaults are separately registered by Chrome.
-    for (const script of ['Zyyy', 'Hans', 'Hant']) fonts[family][script] = 'Maple Mono CN'
+    for (const script of ['Zyyy', 'Hans', 'Hant']) fonts[family][script] = name
   }
   await mkdir(profile, { recursive: true, mode: 0o700 })
   const temporary = join(profile, `.browshare-fonts-${randomUUID()}.tmp`)

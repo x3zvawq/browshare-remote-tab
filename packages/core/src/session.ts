@@ -379,7 +379,7 @@ interface UploadFileState {
 interface UploadTransferState {
   requestId: string
   transferId: string
-  backendNodeId: number
+  target: { backendNodeId: number } | { drop: { x: number; y: number; viewportRevision: number }; documentRevision: number }
   files: Map<string, UploadFileState>
   timer: ReturnType<typeof setTimeout>
 }
@@ -1992,8 +1992,10 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
       this.#cancelClipboardRead('A newer clipboard read replaced this transfer', true)
       let remoteItems
       try {
+        if (message.payload.selection !== undefined) this.#requireActiveCapability('clipboardSelection')
+        if (message.payload.selection === 'cut') this.#requireActiveCapability('clipboardText')
         remoteItems = await this.#withClipboardExclusive(() =>
-          this.#activeTab.controller.readClipboard(),
+          this.#activeTab.controller.readClipboard(message.payload.selection),
         )
       } catch (cause) {
         this.#sendClipboardMessage('clipboard.read.result', {
@@ -2245,14 +2247,20 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
   async #acceptUploadOffer(payload: ProtocolPayload<'file.upload.offer'>): Promise<void> {
     this.#requireConnectedCapability('upload')
     const request = this.#pendingFileChooser
-    if (request === undefined || request.requestId !== payload.requestId || request.expiresAt <= Date.now()) {
+    const documentRevision = this.#activeTab.controller.documentRevision
+    if (payload.drop !== undefined) {
+      this.#requireActiveCapability('fileDrop')
+      if (payload.drop.viewportRevision !== this.#viewport.revision || payload.drop.x > this.#viewport.width || payload.drop.y > this.#viewport.height) throw new RemoteTabError('PROTOCOL_MESSAGE_INVALID', 'Drop coordinates must match the current viewport')
+      if (request !== undefined) throw new RemoteTabError('FILE_TRANSFER_FAILED', 'A file chooser is already active')
+    }
+    if (payload.drop === undefined && (request === undefined || request.requestId !== payload.requestId || request.expiresAt <= Date.now())) {
       throw new RemoteTabError('FILE_TRANSFER_FAILED', 'Remote file chooser request is no longer active')
     }
     if (this.#uploadTransfer !== undefined) {
       throw new RemoteTabError('FILE_TRANSFER_FAILED', 'Another upload transfer is active')
     }
     assertUploadAllowed(payload.files, this.#fileTransferLimits)
-    if (!request.multiple && payload.files.length !== 1) {
+    if (payload.drop === undefined && !request?.multiple && payload.files.length !== 1) {
       throw new RemoteTabError('FILE_LIMIT_EXCEEDED', 'Upload file count exceeds the Session limit')
     }
     const fileIds = new Set<string>()
@@ -2289,12 +2297,12 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
       throw cause
     }
 
-    clearTimeout(request.timer)
+    if (request !== undefined) clearTimeout(request.timer)
     this.#pendingFileChooser = undefined
     this.#uploadTransfer = {
-      requestId: request.requestId,
+      requestId: payload.requestId,
       transferId: payload.transferId,
-      backendNodeId: request.backendNodeId,
+      target: payload.drop === undefined ? { backendNodeId: request!.backendNodeId } : { drop: payload.drop, documentRevision },
       files: new Map(reserved.map((file) => [file.descriptor.fileId, file])),
       timer: this.#createUploadTimer(payload.transferId),
     }
@@ -2335,10 +2343,11 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
     for (const file of transfer.files.values()) {
       stored.push(await file.reservation.commit())
     }
-    await this.#activeTab.controller.setFileInputFiles(
-      transfer.backendNodeId,
-      stored.map((file) => file.localPath),
-    )
+    const paths = stored.map((file) => file.localPath)
+    if ('drop' in transfer.target) {
+      this.#requireActiveCapability('fileDrop')
+      await this.#activeTab.controller.dropFiles(transfer.target.drop, paths, transfer.target.documentRevision)
+    } else await this.#activeTab.controller.setFileInputFiles(transfer.target.backendNodeId, paths)
     // Chrome File objects read lazily; committed uploads consume quota until Session cleanup.
     this.#uploadTransfer = undefined
     this.#sendFileMessage('file.upload.result', { transferId, delivered: true })
@@ -2538,6 +2547,7 @@ class RemoteTabSessionImplementation implements RemoteTabSession {
         (!['noticeRequests', 'navigationConfirmation', 'navigationState'].includes(capability) || message.minor >= 1) &&
         (capability !== 'windowSelection' || message.minor >= 2) &&
         (capability !== 'cursorFeedback' || message.minor >= 5) &&
+        (!['fileDrop', 'clipboardSelection'].includes(capability) || message.minor >= 6) &&
         (capability !== 'advancedQuality' || (message.minor >= 4 && requested.includes('qualityControl') &&
           this.#viewerCapabilities.includes('qualityControl') && this.#capabilities.includes('qualityControl'))),
     )

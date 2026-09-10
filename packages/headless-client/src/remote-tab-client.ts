@@ -38,7 +38,7 @@ import type {
   RemoteTabUploadFile,
 } from './index.js'
 
-const CLIENT_VERSION = '0.1.24'
+const CLIENT_VERSION = '0.1.25'
 const APPLICATION_ERROR_CLOSE_CODE = 4_000
 const DEFAULT_ICE_RESTART_ATTEMPTS = 2
 const DEFAULT_ICE_DISCONNECTED_DELAY_MS = 2_000
@@ -432,7 +432,7 @@ class BrowserRemoteTabClient implements RemoteTabClient {
   }
 
   public sendPointer(input: ProtocolPayload<'input.pointer'>): void {
-    const realtime = input.event === 'mouseMoved' || input.event === 'mouseWheel'
+    const realtime = (input.event === 'mouseMoved' && input.buttons === 0) || input.event === 'mouseWheel'
     this.#sendControl('input.pointer', input, realtime ? this.#realtimeChannel : this.#reliableChannel)
   }
 
@@ -470,22 +470,31 @@ class BrowserRemoteTabClient implements RemoteTabClient {
     this.#sendReliable('navigation.local_open_result', { requestId, approved })
   }
 
+  public dropFiles(point: { x: number; y: number; viewportRevision: number }, files: readonly RemoteTabUploadFile[]): Promise<void> {
+    if (!this.#capabilities.includes('fileDrop')) return Promise.reject(new RemoteTabError('CAPABILITY_UNAVAILABLE', 'Dropping files is not available'))
+    return this.#uploadFiles(crypto.randomUUID(), files, point)
+  }
+
   public uploadFiles(requestId: string, files: readonly RemoteTabUploadFile[]): Promise<void> {
+    return this.#uploadFiles(requestId, files)
+  }
+
+  #uploadFiles(requestId: string, files: readonly RemoteTabUploadFile[], drop?: { x: number; y: number; viewportRevision: number }): Promise<void> {
     if (!this.#capabilities.includes('upload')) {
       return Promise.reject(new RemoteTabError('CAPABILITY_UNAVAILABLE', 'File upload is not available'))
     }
     const request = this.#uploadRequests.get(requestId)?.request
-    if (request === undefined || request.expiresAt <= Date.now()) {
+    if (drop === undefined && (request === undefined || request.expiresAt <= Date.now())) {
       return Promise.reject(new RemoteTabError('FILE_TRANSFER_FAILED', 'Remote file chooser request expired'))
     }
-    if (files.length === 0 || (!request.multiple && files.length !== 1)) {
+    if (files.length === 0 || (drop === undefined && !request?.multiple && files.length !== 1)) {
       return Promise.reject(new RemoteTabError('FILE_LIMIT_EXCEEDED', 'Selected file count is invalid'))
     }
     if (this.#pendingUpload !== undefined) {
       return Promise.reject(new RemoteTabError('FILE_TRANSFER_FAILED', 'Another upload is active'))
     }
     const normalized = files.map((file) => normalizeUploadFile(file))
-    if (request.constraints !== undefined) {
+    if (request?.constraints !== undefined) {
       try { assertUploadAllowed(normalized, request.constraints) } catch (cause) { return Promise.reject(cause) }
     }
     const transferId = crypto.randomUUID()
@@ -507,6 +516,7 @@ class BrowserRemoteTabClient implements RemoteTabClient {
     this.#removeUploadRequest(requestId)
     try {
       this.#sendFile('file.upload.offer', {
+        ...(drop === undefined ? {} : { drop }),
         requestId,
         transferId,
         files: normalized.map(({ fileId, displayName, size, mimeType }) => ({
@@ -638,7 +648,7 @@ class BrowserRemoteTabClient implements RemoteTabClient {
     return promise
   }
 
-  public readRemoteClipboard(): Promise<readonly RemoteTabClipboardItem[]> {
+  public readRemoteClipboard(selection?: 'copy' | 'cut'): Promise<readonly RemoteTabClipboardItem[]> {
     if (
       !this.#capabilities.includes('clipboardText') &&
       !this.#capabilities.includes('clipboardImage')
@@ -648,6 +658,7 @@ class BrowserRemoteTabClient implements RemoteTabClient {
     if (this.#pendingClipboardRead !== undefined) {
       return Promise.reject(new RemoteTabError('FILE_TRANSFER_FAILED', 'Another clipboard read is active'))
     }
+    if (selection !== undefined && !this.#capabilities.includes('clipboardSelection')) return Promise.reject(new RemoteTabError('CAPABILITY_UNAVAILABLE', 'Copying remote selections is not available'))
     const requestId = crypto.randomUUID()
     let resolve!: (items: readonly RemoteTabClipboardItem[]) => void
     let reject!: (reason: unknown) => void
@@ -666,7 +677,7 @@ class BrowserRemoteTabClient implements RemoteTabClient {
     }
     this.#pendingClipboardRead = transfer
     try {
-      this.#sendTransfer('clipboard.read.request', { requestId })
+      this.#sendTransfer('clipboard.read.request', { requestId, ...(selection === undefined ? {} : { selection }) })
     } catch (cause) {
       this.#failClipboardRead(
         transfer,

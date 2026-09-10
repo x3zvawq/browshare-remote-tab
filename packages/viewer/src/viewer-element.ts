@@ -27,6 +27,7 @@ const copy = {
     resume: '恢复传输', suspendedCopy: '音视频传输已暂停，远端页面仍在运行。点击恢复继续操作。',
     ready: '等待连接', connecting: '正在连接远程标签页…', connected: '已连接', suspended: '已暂停传输', failed: '连接失败', closed: '会话已关闭',
     localTitle: '是否在本机打开？', localCopy: '此链接将在本机浏览器中打开，不会继承远端登录状态。原窗口的表单提交数据和窗口关联不会传递，部分页面可能需要重新登录或操作。', cancel: '取消', open: '在本机打开',
+    dropUnavailable: '当前会话不支持拖入文件。请使用远端页面的选择文件按钮。', dropComplete: '文件已发送到远端拖放位置',
     uploadInvalid: '所选文件不符合以上上传限制，请调整后重试。', uploadTitle: '选择本机文件', uploadSingle: '远程页面正在等待一个文件。', uploadMultiple: '远程页面正在等待一个或多个文件。', chooseFiles: '选择文件', uploading: '正在发送', uploadFailed: '文件发送失败', uploadRestart: '本次文件选择请求已结束。请关闭此窗口，在远端页面重新点击选择文件后再试。', close: '关闭',
     downloadTitle: '保存远程下载？', downloadCopy: '远程页面下载了这个文件。确认后会保存到你的设备。', saveDownload: '保存到本机', downloading: '正在接收', downloadFailed: '文件接收失败',
     copyRemote: '复制远端内容', pasteRemote: '粘贴到远端', clipboardReading: '正在读取远端剪贴板…', clipboardWriting: '正在发送到远端…', clipboardDone: '剪贴板操作完成',
@@ -43,6 +44,7 @@ const copy = {
     resume: 'Resume streaming', suspendedCopy: 'Audio and video are paused. The remote page is still running. Resume to continue.',
     ready: 'Ready to connect', connecting: 'Connecting to the remote tab…', connected: 'Connected', suspended: 'Streaming paused', failed: 'Connection failed', closed: 'Session closed',
     localTitle: 'Open on this device?', localCopy: 'This link opens in your browser without the remote sign-in state, submitted form data or connection to the original window. You may need to sign in or repeat an action.', cancel: 'Cancel', open: 'Open locally',
+    dropUnavailable: 'File drop is unavailable. Use the remote page’s file chooser.', dropComplete: 'Files sent to the remote drop location',
     uploadInvalid: 'Selected files exceed the limits above. Adjust your selection and try again.', uploadTitle: 'Choose local files', uploadSingle: 'The remote page is waiting for one file.', uploadMultiple: 'The remote page is waiting for one or more files.', chooseFiles: 'Choose files', uploading: 'Sending', uploadFailed: 'File transfer failed', uploadRestart: 'This file selection request has ended. Close this dialog, then choose files again on the remote page to retry.', close: 'Close',
     downloadTitle: 'Save remote download?', downloadCopy: 'The remote page downloaded this file. Confirm to save it on your device.', saveDownload: 'Save to device', downloading: 'Receiving', downloadFailed: 'File transfer failed',
     copyRemote: 'Copy from remote', pasteRemote: 'Paste to remote', clipboardReading: 'Reading the remote clipboard…', clipboardWriting: 'Sending to the remote tab…', clipboardDone: 'Clipboard action completed',
@@ -533,6 +535,36 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     this.#surface.addEventListener('pointerup', (event) => this.#handlePointer(event, 'mouseReleased'))
     this.#surface.addEventListener('pointercancel', (event) => this.#handlePointer(event, 'mouseReleased'))
     this.#surface.addEventListener('wheel', (event) => this.#sendWheel(event), { passive: false })
+    this.#root.addEventListener('dragover', event => {
+      const drag = event as DragEvent
+      if (drag.dataTransfer?.types.includes('Files')) {
+        drag.preventDefault()
+        drag.dataTransfer.dropEffect = this.#client?.capabilities.includes('fileDrop') && this.#state === 'CONNECTED' ? 'copy' : 'none'
+      }
+    })
+    this.#root.addEventListener('drop', event => {
+      const drop = event as DragEvent
+      if (!drop.dataTransfer?.types.includes('Files')) return
+      drop.preventDefault()
+      drop.stopPropagation()
+      const files = [...drop.dataTransfer.files]
+      const point = this.#mapPointer(drop.clientX, drop.clientY)
+      if (point === undefined || this.#viewport === undefined || files.length === 0 || !drop.composedPath().includes(this.#surface)) return
+      const client = this.#client
+      const viewportRevision = this.#viewport.revision
+      void (async () => {
+        try {
+          if (client === undefined || this.#state !== 'CONNECTED' || this.#playbackBlocked || this.#windowInputBlocked || !client.capabilities.includes('fileDrop')) throw new RemoteTabError('CAPABILITY_UNAVAILABLE', this.#strings.dropUnavailable)
+          this.#showNotice({ level: 'info', code: 'FILE_DROP_SENDING', message: this.#strings.uploading })
+          await client.dropFiles({ ...point, viewportRevision }, files)
+          this.#showNotice({ level: 'info', code: 'FILE_DROP_COMPLETE', message: this.#strings.dropComplete })
+          this.#imeProxy.focus({ preventScroll: true })
+        } catch (cause) {
+          this.#showNotice({ level: 'error', code: 'FILE_DROP_FAILED', message: cause instanceof Error ? cause.message : this.#strings.uploadFailed })
+          this.#dispatchViewerError(cause)
+        }
+      })()
+    })
     this.#surface.addEventListener('contextmenu', (event) => event.preventDefault())
     this.#required<HTMLDialogElement>('[data-local-dialog]').addEventListener('cancel', (event) => {
       event.preventDefault()
@@ -763,7 +795,7 @@ export class RemoteTabViewerElement extends HTMLElementBase {
       event: type,
       ...point,
       viewportRevision: this.#viewport.revision,
-      button: pointerButton(event.button),
+      button: type === 'mouseMoved' ? (this.#pressedPointerButton ?? 'none') : pointerButton(event.button),
       buttons: type === 'mouseReleased' ? 0 : event.buttons,
       modifiers: modifiers(event),
       clickCount: type === 'mousePressed' ? Math.min(event.detail || 1, 3) : 0,
@@ -926,15 +958,28 @@ export class RemoteTabViewerElement extends HTMLElementBase {
   }
 
   #sendKey(event: KeyboardEvent, type: 'keyDown' | 'keyUp'): void {
-    if (this.#state !== 'CONNECTED' || this.#playbackBlocked || this.#windowInputBlocked || this.#compositionActive || event.key === 'Process') return
+    if (this.#state !== 'CONNECTED' || this.#playbackBlocked || this.#windowInputBlocked || this.#compositionActive || event.isComposing || event.keyCode === 229 || event.key === 'Process') return
+    const altGraph = event.getModifierState('AltGraph')
+    const shortcut = (event.ctrlKey || event.metaKey) && !event.altKey && !altGraph
+    const key = event.key.toLowerCase()
+    if (shortcut && ['l', 't', 'w', 'n'].includes(key)) return
+    if (shortcut && ['c', 'x', 'v'].includes(key)) {
+      event.preventDefault()
+      if (type === 'keyDown' && !event.repeat) {
+        if (key === 'v') void this.#pasteToRemote()
+        else void this.#copyFromRemote(key === 'x' ? 'cut' : 'copy')
+      }
+      return
+    }
     event.preventDefault()
-    const text = type === 'keyDown' && event.key.length === 1 && !event.ctrlKey && !event.metaKey
-      ? event.key
+    const text = type === 'keyDown' && (altGraph || (!event.ctrlKey && !event.metaKey && !event.altKey)) && (event.key.length === 1 || event.key === 'Enter')
+      ? event.key === 'Enter' ? '\r' : event.key
       : undefined
     const input = {
       key: event.key,
       code: event.code,
-      modifiers: modifiers(event),
+      modifiers: altGraph ? modifiers(event) & ~3 : shortcut && event.metaKey ? (modifiers(event) & ~4) | 2 : modifiers(event),
+      windowsVirtualKeyCode: event.keyCode,
       isKeypad: event.location === KeyboardEvent.DOM_KEY_LOCATION_NUMPAD,
       ...(text === undefined ? {} : { text, unmodifiedText: text }),
     }
@@ -1335,7 +1380,7 @@ export class RemoteTabViewerElement extends HTMLElementBase {
       if (this.#uploadRequest !== request) return
       this.#dispatch('upload-complete', { requestId: request.requestId })
       this.#hideUpload()
-      this.#surface.focus()
+      this.#imeProxy.focus({ preventScroll: true })
     } catch (cause) {
       if (this.#uploadRequest !== request) return
       const error = this.#required<HTMLElement>('[data-upload-error]')
@@ -1358,7 +1403,7 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     } catch (cause) {
       this.#dispatchViewerError(cause)
     }
-    this.#surface.focus()
+    this.#imeProxy.focus({ preventScroll: true })
   }
 
   #hideUpload(): void {
@@ -1504,11 +1549,11 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     } finally {
       this.#clipboardOperation = undefined
       this.#syncCapabilities()
-      this.#surface.focus()
+      this.#imeProxy.focus({ preventScroll: true })
     }
   }
 
-  async #copyFromRemote(): Promise<void> {
+  async #copyFromRemote(selection?: 'copy' | 'cut'): Promise<void> {
     if (
       this.#client === undefined ||
       this.#state !== 'CONNECTED' ||
@@ -1519,7 +1564,7 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     this.#clipboardOperation = 'read'
     this.#syncCapabilities()
     try {
-      const items = await this.readRemoteClipboard()
+      const items = await this.#client.readRemoteClipboard(selection)
       if (!this.#dispatch('clipboard-read-complete', { items }, true)) return
       try {
         await writeLocalClipboardItems(items)
@@ -1537,7 +1582,7 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     } finally {
       this.#clipboardOperation = undefined
       this.#syncCapabilities()
-      if (this.#clipboardFallback === undefined) this.#surface.focus()
+      if (this.#clipboardFallback === undefined) this.#imeProxy.focus({ preventScroll: true })
     }
   }
 
@@ -1594,7 +1639,7 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     this.#clipboardFallback = undefined
     this.#required<HTMLElement>('[data-clipboard-dialog]').hidden = true
     this.#resumePrompts()
-    this.#surface.focus()
+    this.#imeProxy.focus({ preventScroll: true })
   }
 
   async #sendManualClipboardText(): Promise<void> {
@@ -1629,7 +1674,7 @@ export class RemoteTabViewerElement extends HTMLElementBase {
     } catch (cause) {
       this.#dispatchViewerError(cause)
     }
-    this.#surface.focus()
+    this.#imeProxy.focus({ preventScroll: true })
     this.#resumePrompts()
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "@browshare/remote-tab-core",
-  "version": "0.1.24",
+  "version": "0.1.25",
   "description": "Server-side embedding contracts and session state for BrowShare Remote Tab",
   "license": "MIT",
   "repository": {

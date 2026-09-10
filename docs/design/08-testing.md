@@ -1203,3 +1203,18 @@ followed that repair and the Worker fix deployment. All owned Sessions became te
 Profile/Proxy and Profile storage were removed through business cleanup, and local browsers,
 targets and builders stopped. The public test deployment and original user Profile remain running;
 npm, GHCR and public signed artifacts were not published.
+
+## Native input correction evidence — 2026-09-11
+
+The 0.1.25 source candidate was exercised with production `CdpBrowser`/`CdpTabController` against
+local Google Chrome Stable 152.0.7977.83. Omitting the virtual key code reproduced Backspace doing
+nothing; including it removed the final character. Enter submitted an actual form. A drag with
+`button: none` produced an empty selection; the recorded left button produced the expected text.
+Copying that actual selection returned the same clipboard text. Native file drop delivered a
+trusted drop event and readable File bytes; reloading the document rejected late delivery.
+A real dragenter handler that navigated the page also rejected the remaining native drag sequence.
+
+This local controller test uses a fixture tab-identity resolver and does not prove Extension,
+WebRTC or BrowShare business integration. Deployed Viewer acceptance must additionally cover
+local trusted keyboard events, clipboard permission/fallback, upload limits, stale window/viewport
+and capability denial. Temporary scripts and results are ignored and are not public artifacts.

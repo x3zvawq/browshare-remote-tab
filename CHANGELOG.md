@@ -5,6 +5,16 @@ version for its public npm packages, private service packages, example applicati
 version diagnostics. Wire compatibility is tracked separately by the protocol major and minor
 version in `deploy/compatibility.json`.
 
+## 0.1.25 - 2026-09-11
+
+Unreleased source candidate; no npm, container registry or signed release has been published.
+
+- Replace the all-monospace Chrome defaults with proportional Noto Sans CJK, keeping separate serif and monospace families in the Chrome Node image.
+- Restore native text dragging by preserving the pressed mouse button and ordering drag moves with press/release on the reliable channel.
+- Send browser virtual key codes and Enter text for native editing and form submission. Preserve IME composition and AltGraph, translate editing shortcuts from macOS Command, and restore the input proxy focus after dialogs.
+- Add negotiated `clipboardSelection` for copy/cut of the actual remote selection before clipboard transfer; keep capability checks and browser-permission fallback.
+- Add negotiated `fileDrop`: reuse bounded upload storage and binary chunks, then deliver native Chrome drag/drop events at the acknowledged viewport location. Reject stale documents, viewport changes and unavailable capabilities; prevent a dropped file from navigating the local Viewer.
+
 ## 0.1.24 - 2026-09-09
 
 Unreleased source candidate; no npm, container registry or signed release has been published.

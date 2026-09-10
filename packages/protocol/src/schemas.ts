@@ -316,6 +316,7 @@ export const ProtocolPayloadSchemas = {
   ),
   'file.upload.offer': Type.Object(
     {
+      drop: Type.Optional(Type.Object({ x: Type.Number({ minimum: 0 }), y: Type.Number({ minimum: 0 }), viewportRevision: NonNegativeSafeIntegerSchema }, { additionalProperties: false })),
       requestId: IdentifierSchema,
       transferId: IdentifierSchema,
       files: Type.Array(FileDescriptorSchema, { minItems: 1, maxItems: 64 }),
@@ -434,7 +435,7 @@ export const ProtocolPayloadSchemas = {
     { additionalProperties: false },
   ),
   'clipboard.read.request': Type.Object(
-    { requestId: IdentifierSchema },
+    { requestId: IdentifierSchema, selection: Type.Optional(Type.Enum(['copy', 'cut'] as const)) },
     { additionalProperties: false },
   ),
   'clipboard.read.offer': Type.Object(

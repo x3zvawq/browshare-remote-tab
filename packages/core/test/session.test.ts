@@ -1383,7 +1383,7 @@ function bindExtensionPeer(socket: WebSocket, role: 'service-worker' | 'media'):
       role,
       secret: '0123456789abcdef0123456789abcdef',
       extensionId: 'c'.repeat(32),
-      extensionVersion: '0.1.24',
+      extensionVersion: '0.1.25',
       runtimeGeneration: 'runtime-3',
     }),
   )

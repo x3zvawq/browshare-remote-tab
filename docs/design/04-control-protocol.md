@@ -466,3 +466,34 @@ removed on detach/close; browser page popup ownership remains in the existing Co
 Media remains the rendering authority: no predicted scroll translation or local page reconstruction
 is performed. Passive hover queue coalescing reduces obsolete CDP work under load without dropping
 wheel deltas, drawing/dragging samples, clicks, key events or IME commits.
+
+## Native editing and file drop (1.6)
+
+`input.key` carries `windowsVirtualKeyCode` from the trusted browser key event. Enter key-down
+also carries `text`/`unmodifiedText` equal to carriage return. Viewer suppresses local default
+editing only after handling IME/AltGraph and reserved browser shortcuts. Command editing
+shortcuts from macOS use Control modifiers for the supported Linux Chrome runtime.
+
+Pointer moves with pressed buttons carry the recorded pressed button and use `control-reliable`
+with mouse press/release. Only passive hover uses the lossy realtime route; Core never coalesces
+a button-down move. This preserves drag selection across channel scheduling differences.
+
+Minor 1.6 adds two separately negotiated capabilities; Core excludes both for older peers:
+
+- `fileDrop` requires `upload` authorization as well. Headless `dropFiles(point, files)` sends an
+  ordinary `file.upload.offer` with optional `drop: { x, y, viewportRevision }`. The request ID is
+  client-generated for this offer; ordinary chooser uploads still require the exact pending chooser
+  ID. Runtime schema rejects unknown fields. Session/generation/window envelopes, upload count,
+  size/suffix/temporary quotas, storage normalization, chunk ordering, cancellation and expiry all
+  remain enforced. Core records the current document revision before reservation and rechecks it,
+  the viewport and capability before delivery. Stored remote paths never cross the wire. Chrome
+  receives native `Input.dispatchDragEvent` dragEnter/dragOver/drop with the committed files.
+- `clipboardSelection` permits optional `selection: 'copy' | 'cut'` on `clipboard.read.request`.
+  Existing text/image clipboard authorization is checked before the editing action; cut additionally requires text clipboard permission. Copy/cut and
+  clipboard reading run in the same exclusive operation, avoiding races between input and file
+  channels. The default read request continues to read the existing clipboard without editing.
+
+Viewer contains native file dragover/drop within its surface even when upload is unavailable,
+and shows an actionable error instead of opening a file in the local browser. Drag delivery means
+Chrome dispatched the native events; the target website decides whether and how to accept files.
+Clipboard shortcuts reuse the existing transfer and manual permission fallback UI.

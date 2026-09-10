@@ -30,8 +30,8 @@ describe('capabilities', () => {
 describe('protocol versions', () => {
   it('accepts different minor versions within the same major', () => {
     expect(assessProtocolVersion({ major: 1, minor: 0 }).relationship).toBe('remote-older')
-    expect(assessProtocolVersion({ major: 1, minor: 5 }).relationship).toBe('same')
-    expect(assessProtocolVersion({ major: 1, minor: 6 }).relationship).toBe('remote-newer')
+    expect(assessProtocolVersion({ major: 1, minor: 6 }).relationship).toBe('same')
+    expect(assessProtocolVersion({ major: 1, minor: 7 }).relationship).toBe('remote-newer')
     expect(assessProtocolVersion({ major: 2, minor: 0 }).compatible).toBe(false)
   })
 })

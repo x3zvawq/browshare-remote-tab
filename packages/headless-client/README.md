@@ -70,3 +70,15 @@ When `cursorFeedback` is negotiated with a protocol-1.5 Core and matching Extens
 reports a standard CSS cursor keyword. The Viewer applies it locally; custom cursor images and page
 content are never copied. See the [cursor contract](../../docs/design/04-control-protocol.md#cursor-feedback)
 for frame, shadow-root, navigation and compatibility behavior.
+
+### Native file drop and selection clipboard
+
+With negotiated `fileDrop` and `upload`, call `client.dropFiles({ x, y, viewportRevision }, files)`
+using the acknowledged viewport. Files use the normal bounded transfer and reach Chrome as native
+drag/drop events. The promise rejects if the document, selected window or viewport becomes stale;
+the website remains responsible for accepting the drop.
+
+With negotiated `clipboardSelection` plus a clipboard capability, `readRemoteClipboard('copy')`
+or `readRemoteClipboard('cut')` first edits the actual remote selection inside the same exclusive
+operation. Calling it without an argument reads the existing clipboard. A browser embedder still
+owns local clipboard permission and user-gesture requirements.

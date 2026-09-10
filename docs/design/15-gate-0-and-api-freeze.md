@@ -398,3 +398,13 @@ in [the control protocol](04-control-protocol.md#cursor-feedback).
 Core also coalesces consecutive, not-yet-dispatched passive mouse moves with the same Session,
 generation, window, viewport and modifiers. Each other control operation is an ordering barrier;
 button-down dragging, wheel deltas, clicks, keys and composition commits are not discarded.
+
+### Native editing and file drop (unreleased 0.1.25)
+
+Protocol 1.6 adds optional capabilities `fileDrop` and `clipboardSelection`, optional upload-offer
+`drop` coordinates/revision, and optional clipboard-read `selection: copy | cut`. Existing chooser
+uploads and clipboard reads are unchanged. `RemoteTabClient.dropFiles(point, files)` and the
+optional selection argument to `readRemoteClipboard` are additive public APIs. Core does not
+negotiate either capability with minor-5-or-older peers. Coordinated package and Extension versions
+remain required. See [the protocol](04-control-protocol.md#native-editing-and-file-drop-16) for
+permission, target lifetime and native delivery boundaries.
